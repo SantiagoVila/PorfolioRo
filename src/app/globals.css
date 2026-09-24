@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: #FFFDF8;
+  --color-ink: #191510;
+  --color-diva-pink: #ff2064;
+  --color-marigold: #f69c47;
+  --color-crystal-rose: #f7c6ce;
+  --color-polar-wind: #a1d2ec;
+  --color-bluefish: #40c4e1;
+  --color-blazing-yellow: #ffe70a;
+  --color-ink-faint: rgba(25, 21, 16, 0.22);
+  --font-serif: 'Fraunces', serif;
+  --font-sans: 'Space Grotesk', sans-serif;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* A project is open or in transition: the studio underneath must not scroll.
+   Only <html>: with <body> hidden too, body would become its own scroll
+   container and the sticky studio would jump away from the viewport. */
+html.project-open {
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-faint);
+  border-radius: 2px;
+}
