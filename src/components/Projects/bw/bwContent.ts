@@ -1,8 +1,7 @@
 /**
- * B&W / THE PUNK-CHIC EDIT: all content comes from the real project material.
+ * B&W / THE PUNK-CHIC EDIT: the cover and nine photographs of the shoot.
  *
- * Source of truth: 3work-b&w/ (the cover B&W.jpeg and nine photographs). Eight
- * are served as web derivatives in public/works/bw/ (originals untouched);
+ * Eight photographs are served as web derivatives in public/works/bw/;
  * IMG_0486 is already a light 4000×6000 export and is served as is. The only
  * words are the ones printed on the cover.
  */
@@ -36,8 +35,8 @@ export const STILLS = {
 };
 
 /**
- * Details cut from the full-resolution originals in 3work-b&w/ (untouched),
- * served as WebP derivatives in public/works/bw/details/. Each marks a step
+ * Details cut from the full-resolution photographs, served as WebP
+ * derivatives in public/works/bw/details/. Each marks a step
  * from armour to release: the fists holding the collar shut (IMG_0309), the
  * jacket opening on the chains (IMG_0326), the ringed fist pulling it open
  * (IMG_0326), the studded cuff under the cheek (IMG_0460) and the bullet belt
@@ -51,16 +50,7 @@ export const DETAILS = {
   belt: still("IMG_0468 detail", "/works/bw/details/belt.webp", 2400, 1388, 213, "A bullet-studded belt over leather trousers, white ruffles swinging past"),
 };
 
-/**
- * The armour pair cut tight and identical (fractions of the frame: x0, y0,
- * x1, y1): head to hem, the leather sleeves touching the sides.
- */
-export const ARMOUR_CROP = {
-  front: [0.07, 0.05, 0.93, 0.84],
-  back: [0.075, 0.05, 0.935, 0.84],
-} as const;
-
-/** The approved cover (byte copy of 3work-b&w/B&W.jpeg). */
+/** The cover (also the book's face on the desk). */
 export const COVER_SRC = "/studio/covers/bw.jpg";
 
 /** Words printed on the cover. */

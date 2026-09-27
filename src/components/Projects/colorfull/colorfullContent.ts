@@ -1,10 +1,7 @@
 /**
- * COLORFULL: all content comes from the real project material.
- *
- * Source of truth: 2work-colorfull/ (the cover COLLORFUL.jpeg and six
- * photographs, 45 MP each). The photographs are served as 3200px derivatives
- * in public/works/colorfull/ (originals untouched). The only words are the
- * ones printed on the cover, used as the cover's own typesetting.
+ * COLORFULL: the cover and six photographs (45 MP each), served as 3200px
+ * derivatives in public/works/colorfull/. The only words are the ones printed
+ * on the cover, used as the cover's own typesetting.
  */
 
 export type Photo = {
@@ -37,7 +34,7 @@ export const PHOTOS = {
   backToBack: photo("IMG_0712", LANDSCAPE, [0.55, 0.5], "Red and blue, sitting back to back"),
 };
 
-/** The approved cover (byte copy of 2work-colorfull/COLLORFUL.jpeg). */
+/** The cover (also the book's face on the desk). */
 export const COVER_SRC = "/studio/covers/colorfull.jpg";
 
 /** Words printed on the cover. */

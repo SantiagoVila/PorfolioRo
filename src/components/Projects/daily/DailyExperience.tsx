@@ -34,7 +34,8 @@ type Open = { id: StoryId; phase: StoryPhase; from: Rect };
 
 const storyInUrl = (): StoryId | null => {
   const id = new URLSearchParams(window.location.search).get(STORY_PARAM);
-  return id && id in STORIES ? (id as StoryId) : null;
+  // Own keys only: `in` would also accept "constructor", "toString", "__proto__"…
+  return id && Object.hasOwn(STORIES, id) ? (id as StoryId) : null;
 };
 
 export default function DailyExperience({ setShellControlHidden }: ExperienceProps) {

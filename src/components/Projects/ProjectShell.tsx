@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { motion, useTransform } from "framer-motion";
 import type { ProjectData } from "@/data/projectsData";
 import type { ProjectTransition } from "./useProjectTransition";
@@ -34,6 +34,16 @@ export default function ProjectShell({ project, transition }: { project: Project
   }, [interactive]);
   useFocusTrap(dialogRef, interactive);
 
+  // On a phone held sideways the project keeps clear of the notch and rounded
+  // corners, as Safari itself would if the page didn't run edge to edge: it lies
+  // between the side safe-area insets, and those bands take the project's own
+  // background colour. They have no width anywhere else, so nothing changes there.
+  const stageRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const root = stageRef.current?.firstElementChild;
+    if (root) dialogRef.current?.style.setProperty("--project-bg", getComputedStyle(root).backgroundColor);
+  }, [Experience]);
+
   if (!Experience) return null;
 
   return (
@@ -42,20 +52,26 @@ export default function ProjectShell({ project, transition }: { project: Project
       role="dialog"
       aria-modal="true"
       aria-label={project.title}
+      lang={project.lang}
       aria-hidden={!interactive}
       className="fixed inset-0 z-[70]"
       // Visible as soon as it is interactive (even at the first frame of its
       // fade), so focus can move into it right away.
       style={{ opacity: shellOpacity, visibility: interactive ? "visible" : visibility, pointerEvents: interactive ? "auto" : "none" }}
     >
-      <Experience project={project} onClose={requestClose} setShellControlHidden={setControlHidden} />
+      <div aria-hidden className="absolute inset-y-0 left-0 w-[env(safe-area-inset-left)]" style={{ background: "var(--project-bg)" }} />
+      <div aria-hidden className="absolute inset-y-0 right-0 w-[env(safe-area-inset-right)]" style={{ background: "var(--project-bg)" }} />
+      <div ref={stageRef} className="absolute inset-y-0 left-[env(safe-area-inset-left)] right-[env(safe-area-inset-right)]">
+        <Experience project={project} onClose={requestClose} setShellControlHidden={setControlHidden} />
+      </div>
 
       <button
         ref={closeRef}
         onClick={requestClose}
         data-shell-close
+        lang="en"
         hidden={controlHidden}
-        className="fixed top-6 right-6 sm:top-8 sm:right-8 z-[80] flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.3em] text-white mix-blend-difference px-2 py-2 outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        className="fixed top-[max(env(safe-area-inset-top),1.5rem)] right-[max(env(safe-area-inset-right),1.5rem)] sm:top-[max(env(safe-area-inset-top),2rem)] sm:right-[max(env(safe-area-inset-right),2rem)] z-[80] flex items-center gap-3 text-[10px] font-bold uppercase tracking-[0.3em] text-white mix-blend-difference px-2 py-2 outline-none focus-visible:ring-2 focus-visible:ring-white/80"
       >
         <span aria-hidden className="block w-6 h-px bg-current" />
         Back to the desk

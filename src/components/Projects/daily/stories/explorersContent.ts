@@ -85,4 +85,3 @@ export const DREAMERS = {
 export const UNIVERSES = { terms: ["Transmutación", "Sensibilidad táctil", "Experiencia sensorial", "Expansión", "Arte vivo", "Construcción"], spread: spread(14) };
 
 export const SIGNALS_SPREAD = spread(4);
-export const INDEX_SPREAD = spread(2);

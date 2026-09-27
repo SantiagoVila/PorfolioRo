@@ -1,5 +1,5 @@
 /**
- * Geometry of the approved COLORFULL cover (2work-colorfull/COLLORFUL.jpeg,
+ * Geometry of the COLORFULL cover (public/studio/covers/colorfull.jpg,
  * 1792×2400), measured from the image itself. All values are cover pixels.
  *
  * - The two blob windows, as 96 radii at even angles around each blob's

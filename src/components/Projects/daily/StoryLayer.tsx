@@ -129,9 +129,9 @@ export default function StoryLayer({ id, phase, from, box, reduced, onLanded, on
         <button
           ref={backRef}
           onClick={onBack}
-          className={`${narrow.className} absolute top-6 right-6 sm:top-8 sm:right-8 z-10 flex items-center gap-3 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] outline-none focus-visible:ring-2`}
+          className={`${narrow.className} absolute top-[max(env(safe-area-inset-top),1.5rem)] right-6 sm:top-[max(env(safe-area-inset-top),2rem)] sm:right-8 z-10 flex items-center gap-3 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] outline-none focus-visible:ring-2`}
           style={{ color: tone.ink, background: tone.paper }}
-          aria-label="Back to The Daily"
+          lang="en" aria-label="Back to The Daily"
         >
           <span aria-hidden>←</span> The Daily
         </button>

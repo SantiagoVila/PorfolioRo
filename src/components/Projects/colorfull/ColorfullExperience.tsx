@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from "react";
 import Image from "next/image";
 import { useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { FILL_COVER_SIZES } from "../coverWarmup";
 import { fillRect, handoffAspect } from "../transitionGeometry";
 import { useBox, type Box } from "../useBox";
 import { useKeyboardScroll } from "../useKeyboardScroll";
@@ -492,7 +493,7 @@ function LiveStage({ layout, scroller }: { layout: Layout; scroller: RefObject<H
   const [els, register] = useEls();
   const layoutRef = useRef(layout);
   const { scrollYProgress } = useScroll({ container: scroller });
-  // Function transform: keeps framer off its native ViewTimeline path (see app/page.tsx).
+  // Function transform: keeps framer off its native scroll-timeline path, which mistracks nested scrollers.
   const progress = useTransform(scrollYProgress, (v) => v);
   const pointer = useRef({ tx: 0, ty: 0, on: 0, x: 0, y: 0, infl: 0, v: 0, seen: false });
 
@@ -618,7 +619,7 @@ function Scene({ register, layout, overlay }: { register: Register; layout: Layo
       className="absolute left-0 top-0 origin-top-left"
       style={{ width: coverBase, height: (coverBase * COVER_H) / COVER_W, visibility: "hidden", willChange: "transform" }}
     >
-      <Image src={COVER_SRC} alt="" fill sizes="100vw" className="object-cover" loading="eager" draggable={false} />
+      <Image src={COVER_SRC} alt="" fill sizes={FILL_COVER_SIZES} className="object-cover" loading="eager" draggable={false} />
     </div>
   );
   const sprite = (id: TypeId | "cutout", decorative = false) => (
@@ -668,7 +669,7 @@ function Scene({ register, layout, overlay }: { register: Register; layout: Layo
 
       {overlay && (
         <div ref={register("overlay")} data-el="overlay" aria-hidden className="absolute" style={{ left: F.x, top: F.y, width: F.width, height: F.height }}>
-          <Image src={COVER_SRC} alt="" fill sizes="100vw" className="object-cover" loading="eager" draggable={false} />
+          <Image src={COVER_SRC} alt="" fill sizes={FILL_COVER_SIZES} className="object-cover" loading="eager" draggable={false} />
         </div>
       )}
     </div>

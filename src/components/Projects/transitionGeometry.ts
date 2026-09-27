@@ -1,4 +1,5 @@
 import { DESK_OBJECTS, type Quad } from "@/components/Studio/sceneLayout";
+import { safeInsets } from "@/components/safeArea";
 
 /**
  * Geometry of the object → project transition. Progress `t`:
@@ -42,4 +43,16 @@ export function fillRect(aspect: number, vw: number, vh: number): Rect {
   const width = Math.max(vw, vh * aspect);
   const height = width / aspect;
   return { x: (vw - width) / 2, y: (vh - height) / 2, width, height };
+}
+
+/**
+ * Where an open project lies on the screen: all of it, less a phone's side
+ * safe-area insets (notch, rounded corners; 0 almost everywhere). The project
+ * shell insets the experience the same way, so a book's fill still lands on
+ * its opening cover.
+ */
+export function projectFillRect(aspect: number): Rect {
+  const { left, right } = safeInsets();
+  const r = fillRect(aspect, window.innerWidth - left - right, window.innerHeight);
+  return { ...r, x: r.x + left };
 }

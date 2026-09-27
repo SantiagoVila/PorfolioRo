@@ -79,6 +79,7 @@ export default function DiaryObject({
     <motion.div
       role="button"
       tabIndex={0}
+      lang="en"
       aria-label={`${title} — ${category}`}
       className={`relative w-full h-full cursor-pointer group outline-none ${className}`}
       initial={{ opacity: 0, y: 30, rotateZ: rotation }}
@@ -159,7 +160,7 @@ export function NewspaperFront({ title, category, grade = 1, ink = 1, paper = NE
           <span className={`${narrow.className} text-[4.2px] leading-[1.25] uppercase tracking-[0.18em] font-semibold opacity-80`}>
             {ISSUE.section.split(" & ").map((w, i) => <span key={w} className="block">{i ? `& ${w}` : w}</span>)}
           </span>
-          <h3 className="leading-none"><DailyMark size={52} label={title} /></h3>
+          <div className="leading-none"><DailyMark size={52} label={title} /></div>
           <span className={`${narrow.className} text-[4.2px] leading-[1.25] uppercase tracking-[0.18em] font-semibold opacity-80 text-right`}>
             {ISSUE.author.split(" ").map((w) => <span key={w} className="block">{w}</span>)}
           </span>

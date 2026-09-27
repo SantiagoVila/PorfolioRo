@@ -2,12 +2,10 @@
  * Studio scene layout, in "stage" pixels.
  *
  * The stage is the native frame of the 16:9 desk plate
- * (public/studio/desk-wide.png, 1672×941). The composition follows the
- * master reference (Referencia1.jpeg): the objects, cap and lettering were
- * measured there and carried onto this plate using its props (cup, keys,
- * crumpled paper) and desk edges as the ruler: 0.89 across, 0.80 in depth
- * (this camera looks at the desk a little lower), back edge at y 440.
- * The stage is scaled as one unit to fit the viewport.
+ * (public/studio/desk-wide.png, 1672×941). The objects, cap and lettering are
+ * placed on it using the plate's own props (cup, keys, crumpled paper) and
+ * desk edges as the ruler; the desk's back edge is at y 440. The stage is
+ * scaled as one unit to fit the viewport.
  */
 
 export const STAGE_WIDTH = 1672;
@@ -33,31 +31,20 @@ export const STAGE_FIT = {
   safeTop: 118,
   safeBottom: 768,
   focusX: FOCUS_X,
-  explore: {
-    /**
-     * Fitting all four objects across a phone held upright shrinks the books
-     * to ~80 px. Below this fitted scale (books under ~110 px across) the desk
-     * is not fitted: it is shown larger than the screen and explored by dragging.
-     */
-    below: 0.5,
-    /** Stage width in view: Colorfull and The Daily whole, with a third of each neighbour showing. */
-    span: 640,
-    /** Where the view starts: centred between the cap (834) and the middle pair (882). */
-    startX: 860,
-    /** How far the view can travel (stage x of its edges): the objects plus a strip of the desk's props. */
-    left: 220,
-    right: 1540,
-  },
 };
-
-/** Stage y of the drag hint when exploring: on the desk's front edge, under the labels. */
-export const EXPLORE_HINT_Y = 812;
 
 /** Back edge of the desk; wall-mounted text is clipped above it. */
 export const WALL_EDGE_Y = 440;
 
-/** Wall lettering: centre x, top of its box, font size (stage px). */
-export const WALL_TEXT = { x: 850, top: 115, size: 233 };
+/**
+ * Wall lettering: centre x, top of its box, font size (stage px). In the intro
+ * the name stands higher (up to `introLift`) and a little larger
+ * (`introScale`), and settles into this painted place at work.
+ */
+export const WALL_TEXT = { x: 850, top: 115, size: 233, introLift: 270, introScale: 1.08 };
+
+/** Height of the two-line name block, in font sizes (both lines, their leading). */
+export const NAME_HEIGHT_EM = 1.52;
 
 /** Where the cap rests on the desk (its bounding box). */
 export const CAP_SLOT = { x: 741, y: 324, width: 188, height: 176 };
@@ -79,8 +66,15 @@ export const CAP_REST = {
 };
 
 /**
+ * The band of the frames (frame px, top to bottom) taken by the cap's contact
+ * shadow across the turn, and the top of its crown (measured on the frames).
+ */
+export const CAP_SHADOW_BAND = { top: 280, bottom: 379 };
+export const CAP_CROWN_TOP = 44;
+
+/**
  * How the cap behaves once it sits on the desk: a still, physical object
- * instead of Scene 1's free 360° spin. Frame 0 is the straight-on pose (the
+ * instead of the intro's free 360° spin. Frame 0 is the straight-on pose (the
  * most symmetric silhouette, eyes to the viewer). Without input it holds that
  * frame exactly; the cursor turns it between frames 80 and 12 (front and
  * three-quarter views only), and it eases back to 0 when input stops.
@@ -94,6 +88,46 @@ export const CAP_DESK_REST = {
 
 /** Scroll progress from which the cap switches to its desk behaviour. */
 export const CAP_DESK_FROM = 0.55;
+
+/**
+ * The studio wall continued above the plate (public/studio/wall-above.webp),
+ * derived from the plate's own wall: its colour at the top edge carried
+ * upwards and the plaster's grain mirrored upwards. The framings that show
+ * more wall than the photograph has (the intro, About, Contact, phones held
+ * upright) look up it. Stage coordinates: it spans y -height..0.
+ */
+export const WALL_ABOVE = { src: "/studio/wall-above.webp", height: 760 };
+
+/** Front edge of the desk (its lip); below is the floor. */
+export const DESK_FRONT_Y = 812;
+
+/**
+ * Phones and tablets held upright: the same desk, its objects laid out two
+ * by two instead of in a row, so all four are on screen at once. Placed on
+ * the desk's own perspective plane (fitted from the landscape placement),
+ * at 85% with open gutters between them (the phone's narrow frame reads a
+ * full-size set as crowded), room behind for the cap against the wall, and
+ * a margin of desk at both sides; a little left of centre, where the plate
+ * projects them most upright. Covers carry their own titles, so no labels.
+ */
+export const PORTRAIT = {
+  /** Stage x range the camera keeps on screen (the objects, 455 px, plus a margin of desk). */
+  left: 310,
+  right: 870,
+  /** Stage x at the centre of the group. */
+  centreX: 590,
+  quads: {
+    chacarita: [[431.5, 462.0], [589.6, 459.8], [589.8, 588.9], [414.1, 590.8]],
+    colorfull: [[618.4, 464.2], [779.6, 466.5], [788.8, 598.4], [609.5, 594.5]],
+    journalism: [[399.9, 602.8], [591.7, 606.7], [578.9, 775.6], [362.6, 769.3]],
+    bw: [[610.6, 611.4], [791.7, 609.8], [817.8, 778.9], [613.1, 779.6]],
+  } as Record<string, Quad>,
+  /** The cap's bottom-centre on the desk, against the wall behind the objects. */
+  capAnchor: { x: 605.4, y: 449.1 },
+};
+
+/** Wall lettering on the upright layout: sized so the name fits the width the camera shows. */
+export const WALL_TEXT_PORTRAIT = { x: 590, top: 262, size: 120, introLift: 300, introScale: 1.03 };
 
 export type Point = [x: number, y: number];
 /** Corners of an object's top face on the stage: TL, TR, BR, BL. */

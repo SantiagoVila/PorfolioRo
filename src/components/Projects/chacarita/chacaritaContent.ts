@@ -1,15 +1,11 @@
 /**
- * CHACARITA: all content comes from the real project material.
+ * CHACARITA: the cover, ten photographs and the project's fashion film.
  *
- * Source of truth: 1work-chacarita/ (the cover CHACARITA2.jpeg + ten
- * photographs) and the project's fashion film, whose only copy is the
- * archived _archive_phase10/public/works/fashion_film.mp4.gif (a 97 MB GIF
- * captured from a video player; no original video exists on this machine).
- * The photographs are served from public/works/, byte-identical copies of
- * that folder. DSC04988 (4) is the same frame as DSC04988 (3) (max pixel
- * difference 2/255) and is not used. The film is served as web derivatives of
- * the GIF (public/works/chacarita/: the player frame cropped away, native
- * size, no sound). Text is only what is printed on the cover.
+ * The photographs are served from public/works/ as delivered. DSC04988 (4) is
+ * the same frame as DSC04988 (3) and is not used. The film exists only as a
+ * GIF captured from a video player; it is served as web derivatives of it
+ * (public/works/chacarita/: the player's frame cropped away, native size, no
+ * sound). The only text is what is printed on the cover.
  */
 
 export type Frame = {
@@ -29,7 +25,7 @@ const frame = (id: string, file: string, w: number, h: number, alt: string): Fra
 });
 
 export const COVER = {
-  src: "/studio/covers/chacarita.jpg", // byte copy of 1work-chacarita/CHACARITA2.jpeg
+  src: "/studio/covers/chacarita.jpg",
   width: 1792,
   height: 2400,
 };
@@ -56,22 +52,7 @@ export const FRAMES = {
 };
 
 /**
- * Narrow crops for portrait screens (fractions of the frame's width): each
- * doorway cut at the outer edge of its door frame, keeping the hands on the
- * jambs; each figure in the bus cut to the body.
- */
-export const CROPS = {
-  redDoor: [0.04, 0.9],
-  blueDoor: [0.03, 0.95],
-  busStanding: [0.12, 0.78],
-  busDriver: [0.08, 0.72],
-} as const;
-
-/** Where the couple sits across DSC04988 (fraction of its width), for a full-screen crop on phones. */
-export const COUPLE_FOCUS = 0.52;
-
-/**
- * The fashion film (≈49 s, silent): derivatives of the archived GIF, its
+ * The fashion film (≈49 s, silent): derivatives of the original GIF, its
  * picture only (774×440), H.264 MP4 first (plays everywhere, hardware
  * decoded), VP9 WebM as a fallback. The poster is a frame of the film: the
  * cup jacket crossing the street.

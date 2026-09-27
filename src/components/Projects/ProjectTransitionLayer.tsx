@@ -7,7 +7,7 @@ import { quadToMatrix3d } from "@/components/Studio/perspective";
 import { BookCover, BookShadows, BookThickness } from "@/components/Studio/BookObject";
 import { NEWSPRINT, NewspaperFront, NewspaperSheets, NewspaperShadows } from "@/components/Studio/DiaryObject";
 import type { ActiveObject, ProjectTransition } from "./useProjectTransition";
-import { clamp01, fillRect, heldRect, lerpQuad, rectQuad } from "./transitionGeometry";
+import { clamp01, heldRect, lerpQuad, projectFillRect, rectQuad } from "./transitionGeometry";
 import { FILL_COVER_SIZES, HELD_COVER_SIZES } from "./coverWarmup";
 import { PAPER as DAILY_PAPER } from "./daily/paper";
 
@@ -41,7 +41,7 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
   // its print is fading to blank paper, and a screen-sized newspaper is costly to paint.
   const [base] = useState(() => {
     const held = heldRect(aspect, window.innerWidth, window.innerHeight);
-    const fill = object.kind === "book" ? fillRect(aspect, window.innerWidth, window.innerHeight) : held;
+    const fill = object.kind === "book" ? projectFillRect(aspect) : held;
     return { bodyZoom: held.height / object.height, fillZoom: fill.height / object.height, fill };
   });
   const bodyW = object.width * base.bodyZoom;
@@ -60,12 +60,15 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
   const fillTransform = useTransform(t, (v) => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    const q = lerpQuad(rectQuad(heldRect(aspect, vw, vh)), rectQuad(fillRect(aspect, vw, vh)), clamp01(v - 1));
+    const q = lerpQuad(rectQuad(heldRect(aspect, vw, vh)), rectQuad(projectFillRect(aspect)), clamp01(v - 1));
     return quadToMatrix3d(base.fill.width, base.fill.height, q);
   });
 
   // Leaving the desk: contact and cast shadow go first, then thickness and room light.
   const deskShadows = useTransform(t, (v) => 1 - clamp01(v * 2.5));
+  // Once they have faded, out of the layer tree too: they are blurred (filters),
+  // and would otherwise be filtered again on every frame of the flight for nothing.
+  const deskShadowsShown = useTransform(deskShadows, (v) => (v > 0 ? "visible" : "hidden"));
   const thickness = useTransform(t, (v) => 1 - clamp01(v * 1.6));
   const roomLight = useTransform(t, (v) => 1 - clamp01(v));
   const heldShadow = useTransform(t, (v) => clamp01(v) * (1 - clamp01((v - 1) * 2)));
@@ -105,13 +108,17 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
           />
           {object.kind === "book" && object.coverImage ? (
             <>
-              <BookShadows opacity={deskShadows} />
+              <motion.div className="absolute inset-0 -z-10" style={{ visibility: deskShadowsShown }}>
+                <BookShadows opacity={deskShadows} />
+              </motion.div>
               <BookThickness opacity={thickness} />
               <BookCover title={object.label} coverImage={object.coverImage} grade={roomLight} hiResSizes={HELD_COVER_SIZES} />
             </>
           ) : (
             <>
-              <NewspaperShadows opacity={deskShadows} />
+              <motion.div className="absolute inset-0 -z-10" style={{ visibility: deskShadowsShown }}>
+                <NewspaperShadows opacity={deskShadows} />
+              </motion.div>
               <NewspaperSheets opacity={thickness} />
               <NewspaperFront title="The Daily" category={object.category} grade={roomLight} />
             </>

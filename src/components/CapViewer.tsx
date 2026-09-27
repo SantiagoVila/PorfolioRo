@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import { useFrameLoader } from "@/hooks/useFrameLoader";
 import { RestPose, useIdleCursor } from "@/hooks/useIdleCursor";
 
-/** Largest on-screen width of the cap canvas (Scene 1). HeroStage relies on it to land the cap. */
+/** Largest on-screen width of the cap canvas (the intro). HeroStage relies on it to land the cap. */
 export const CAP_CANVAS_MAX_WIDTH = 800;
 
 interface CapViewerProps {
@@ -12,6 +12,24 @@ interface CapViewerProps {
   rest?: RestPose | null;
   /** While resting: whether a touch starting at this point may turn the cap (default: any). */
   acceptTouch?: (x: number, y: number) => boolean;
+}
+
+/** Drawable: loaded and decoded, not broken. */
+const usable = (img: HTMLImageElement | null | undefined): img is HTMLImageElement => !!img && img.complete && img.naturalWidth > 0;
+
+/**
+ * The frame to draw for `index`: itself, or if it failed to load the nearest
+ * one that did (going round the loop, the earlier one first on a tie).
+ */
+function nearestFrame(frames: (HTMLImageElement | null)[], index: number) {
+  const n = frames.length;
+  for (let d = 0; d <= n / 2; d++) {
+    const before = frames[(((index - d) % n) + n) % n];
+    if (usable(before)) return before;
+    const after = frames[(index + d) % n];
+    if (usable(after)) return after;
+  }
+  return null;
 }
 
 export default function CapViewer({ rest = null, acceptTouch }: CapViewerProps) {
@@ -23,8 +41,8 @@ export default function CapViewer({ rest = null, acceptTouch }: CapViewerProps) 
       if (!loaded || !canvasRef.current) return;
       const ctx = canvasRef.current.getContext("2d");
       if (!ctx) return;
-      
-      const img = images.current[index];
+
+      const img = nearestFrame(images.current, index);
       if (img) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         ctx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -35,7 +53,7 @@ export default function CapViewer({ rest = null, acceptTouch }: CapViewerProps) 
 
   useEffect(() => {
     if (loaded && canvasRef.current) {
-      const img = images.current[0];
+      const img = nearestFrame(images.current, 0);
       if (img) {
         canvasRef.current.width = img.width;
         canvasRef.current.height = img.height;

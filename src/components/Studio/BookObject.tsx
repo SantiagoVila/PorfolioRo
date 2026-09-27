@@ -23,8 +23,7 @@ const COVER_NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns=
 
 /**
  * Same `sizes` everywhere the desk-size cover is drawn, so the browser reuses
- * one cached file. Phones explore a larger desk (see STAGE_FIT.explore): a
- * book there is ~38vw across.
+ * one cached file. On phones a book is about 38vw across.
  */
 export const DESK_COVER_SIZES = "(max-width: 540px) 40vw, (max-width: 768px) 30vw, 22vw";
 
@@ -47,6 +46,7 @@ export default function BookObject({
     <motion.div
       role="button"
       tabIndex={0}
+      lang="en"
       aria-label={`${title} — ${category}`}
       className={`relative w-full h-full cursor-pointer group outline-none ${className}`}
       initial={{ opacity: 0, y: 30, rotateZ: rotation }}

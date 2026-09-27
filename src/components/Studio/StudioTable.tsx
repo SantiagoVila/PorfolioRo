@@ -1,107 +1,120 @@
 "use client";
 
-import { motion, MotionValue, useMotionValueEvent, useTransform } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
+import { motion, useMotionValueEvent, useTransform } from "framer-motion";
 import { warmCovers } from "@/components/Projects/coverWarmup";
 import { preloadExperiences } from "@/components/Projects/experiences";
 import { PROJECTS } from "@/data/projectsData";
-import { DESK_OBJECTS } from "./sceneLayout";
-import type { StageFit } from "@/hooks/useStageFit";
-import StudioScene from "./StudioScene";
+import type { World } from "@/hooks/useWorld";
+import { useRevealed } from "../reveal";
+import { safeInsets } from "../safeArea";
+import { DESK_OBJECTS, WALL_EDGE_Y } from "./sceneLayout";
+import { project } from "./worldCamera";
 
-interface StudioTableProps {
-  scrollYProgress: MotionValue<number>;
-  stageFit: StageFit;
-  /** Horizontal pan of the desk on phones (see useDeskPan). */
-  pan: MotionValue<number>;
-  onSelectProject: (id: string, el: HTMLElement) => void;
-  liftedId?: string | null;
-}
+const INK = [25, 21, 16];
+const LIGHT = [239, 232, 220];
+const smooth = (x: number) => {
+  const t = Math.min(1, Math.max(0, x));
+  return t * t * (3 - 2 * t);
+};
+const mixRgb = (a: number[], b: number[], t: number) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
 
-export default function StudioTable({ scrollYProgress, stageFit, pan, onSelectProject, liftedId = null }: StudioTableProps) {
-  // Table fades in from 0.3 to 1.0
-  const opacity = useTransform(scrollYProgress, [0.3, 1], [0, 1]);
-  
-  // The whole scene has a slight perspective shift as we scroll in
-  const rotateX = useTransform(scrollYProgress, [0.3, 1], [15, 0]);
-  const scale = useTransform(scrollYProgress, [0.3, 1], [0.95, 1]);
-  const y = useTransform(scrollYProgress, [0.3, 1], [150, 0]);
+/** The scroll cue's pulse: the bar runs down its track (1.8 s), then rests out of sight (0.3 s). */
+const PULSE: Keyframe[] = [
+  { transform: "translateY(-12px)", easing: "cubic-bezier(0.45, 0, 0.55, 1)" },
+  { transform: "translateY(36px)", offset: 1.8 / 2.1 },
+  { transform: "translateY(36px)" },
+];
 
-  // Parallax for specific UI elements
-  const uiY = useTransform(scrollYProgress, [0.5, 1], [50, 0]);
-  const uiOpacity = useTransform(scrollYProgress, [0.5, 1], [0, 1]);
+/**
+ * The desk's own words, present only while the desk is the subject: the one
+ * instruction, and the portfolio's years along the floor. And the scroll cue,
+ * the one thing carried from the intro: under the hero at first, just above
+ * the desk's edge in the wall's ink; as the camera comes down it travels into
+ * the corner, turning light over the floor, and stays as the desk's "Scroll".
+ */
+export default function StudioTable({ world }: { world: World }) {
+  const { s, view, cams } = world;
+  const revealed = useRevealed();
+  const near = useTransform(s, (v) => Math.max(0, 1 - Math.abs(v - 1) * 2.2));
+  const y = useTransform(near, (v) => (1 - v) * 24);
 
-  // Only enable interactions when table is visible
-  const pointerEvents = useTransform(scrollYProgress, (v) => v > 0.8 ? "auto" : "none");
+  const along = useTransform(s, (v) => smooth((v - 0.08) / 0.8));
+  const introEdge = cams.length ? project(view, cams[0], 0, WALL_EDGE_Y).y : view.hs;
+  const rise = Math.max(0, view.hs - 32 - (introEdge - 18));
+  // Into the corner, clear of a phone's notch or rounded corner when it is held sideways.
+  const cueX = useTransform(along, (p) => p * (view.w / 2 - 64 - safeInsets().right));
+  const cueY = useTransform(along, (p) => -(1 - p) * rise);
+  const cueColor = useTransform(along, (p) => mixRgb(INK, LIGHT, smooth((p - 0.3) / 0.5)));
+  const cueOpacity = useTransform(s, (v) => (v <= 1 ? 1 : Math.max(0, 1 - (v - 1) * 2.2)));
+  // The line's pulse runs only while the intro waits for the first scroll.
+  const [waiting, setWaiting] = useState(() => s.get() < 0.08);
+  // A Web Animation of transform alone, which the browser's compositor plays: the
+  // page does no work for it while the reader looks at the intro. Once the page
+  // moves on, the bar settles at the top of its track from wherever it was.
+  const pulse = useRef<HTMLSpanElement>(null);
+  const reduced = world.reduced;
+  useEffect(() => {
+    const el = pulse.current;
+    if (!el || !waiting || !revealed || reduced) return;
+    const loop = el.animate(PULSE, { duration: 2100, iterations: Infinity });
+    return () => {
+      const from = getComputedStyle(el).transform;
+      loop.cancel();
+      if (from && from !== "none") el.animate([{ transform: from }, { transform: "translateY(0px)" }], { duration: 600, easing: "ease-out" });
+    };
+  }, [waiting, revealed, reduced]);
 
-  // Once the desk is in view, fetch the covers' large versions and the
+  // As the desk comes into view, fetch the covers' large versions and the
   // projects' code in the background, so a first-ever opening never waits.
-  useMotionValueEvent(scrollYProgress, "change", (v) => {
+  useMotionValueEvent(s, "change", (v) => {
+    setWaiting(v < 0.08);
     if (v <= 0.6) return;
     warmCovers(DESK_OBJECTS.flatMap((o) => PROJECTS[o.id]?.coverImage ?? []));
     preloadExperiences();
   });
 
   return (
-    <motion.section 
-      className="absolute inset-0 z-10 w-full h-full"
-      style={{ 
-        opacity,
-        pointerEvents,
-        perspective: "1200px" 
-      }}
-    >
-      <motion.div 
-        className="w-full h-full flex flex-col justify-between"
-        style={{ scale, y, rotateX, transformStyle: "preserve-3d" }}
+    <div className="absolute inset-0 z-30 pointer-events-none">
+      <motion.p
+        lang="en"
+        className="absolute left-[max(env(safe-area-inset-left),2rem)] text-[#191510] text-[9px] font-bold tracking-[0.2em] uppercase leading-relaxed"
+        style={{ top: "calc(max(env(safe-area-inset-top), 0px) + 7.5rem)", opacity: near, y }}
       >
-        {/* Physical desk: environment plate + projected desk objects */}
-        <StudioScene fit={stageFit} pan={pan} onSelectProject={onSelectProject} liftedId={liftedId} />
+        Select a project.
+        <span aria-hidden className="block mt-4 text-xl font-light tracking-normal">+</span>
+      </motion.p>
 
-        {/* UI Nav (Top) */}
-        <motion.header 
-          className="relative flex justify-between items-start text-[#191510] z-30 p-8"
-          style={{ y: uiY, opacity: uiOpacity }}
-        >
-          <div className="text-[10px] md:text-xs font-bold tracking-[0.2em] uppercase">
-            Rosario Medina
-          </div>
-          <nav className="flex gap-4 md:gap-8 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase opacity-70">
-            <button className="hover:opacity-100 transition-opacity border-b border-black pb-1">Projects</button>
-            <button className="hover:opacity-100 transition-opacity pb-1">About</button>
-            <button className="hover:opacity-100 transition-opacity pb-1">Contact</button>
-          </nav>
-        </motion.header>
+      <motion.footer
+        aria-hidden
+        className="absolute inset-x-0 bottom-0 flex justify-between items-end text-[#efe8dc] py-8 pl-[max(env(safe-area-inset-left),2rem)] pr-[max(env(safe-area-inset-right),2rem)]"
+        // Above the phone's browser bars while they show (zero where there are none).
+        style={{ opacity: near, y, marginBottom: "calc(100lvh - 100svh + env(safe-area-inset-bottom))" }}
+      >
+        <div className="flex flex-col gap-1 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase">
+          <span>Portfolio</span>
+          <span>2024 — 2025</span>
+        </div>
+      </motion.footer>
 
-        {/* Left Side Text */}
-        <motion.div 
-           className="absolute top-[22%] left-8 text-[#191510] z-30"
-           style={{ y: uiY, opacity: uiOpacity }}
+      <motion.div
+        aria-hidden
+        className="absolute left-1/2 w-16 -ml-8"
+        style={{ bottom: "calc(2rem + 100lvh - 100svh + env(safe-area-inset-bottom))", x: cueX, y: cueY, color: cueColor, opacity: cueOpacity }}
+      >
+        <motion.div
+          className="flex flex-col items-center gap-2.5 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase pl-[0.3em]"
+          initial={{ opacity: 0 }}
+          animate={revealed ? { opacity: 1 } : { opacity: 0 }}
+          transition={{ duration: 1, delay: world.reduced ? 0 : 1.5 }}
         >
-           <div className="text-[9px] font-bold tracking-[0.2em] uppercase leading-relaxed">
-             {/* The desk only drags where it is explored (phones held upright). */}
-             {stageFit.explore ? <>Select a project<br />or drag to explore.</> : "Select a project."}
-           </div>
-           <div className="mt-4 text-xl font-light">+</div>
+          <span>Scroll</span>
+          <span className="relative block w-px h-9 overflow-hidden">
+            <span className="absolute inset-0 bg-current opacity-25" />
+            <span ref={pulse} className="absolute inset-x-0 top-0 h-3 bg-current" />
+          </span>
         </motion.div>
-
-        {/* UI Footer (Bottom) */}
-        <motion.footer 
-          className="relative flex justify-between items-end text-[#efe8dc] z-30 p-8"
-          // Phones: the screen is 100vh (browser toolbars hidden); lift the footer
-          // above the toolbars while they show. Zero wherever there are none.
-          style={{ y: uiY, opacity: uiOpacity, marginBottom: "calc(100lvh - 100svh)" }}
-        >
-          <div className="flex flex-col gap-1 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase">
-            <span>Portfolio</span>
-            <span>2024 — 2025</span>
-          </div>
-          <div className="text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase flex flex-col items-center gap-2">
-            <span>Scroll</span>
-            <div className="w-[1px] h-6 bg-[#efe8dc]" />
-          </div>
-        </motion.footer>
-
       </motion.div>
-    </motion.section>
+    </div>
   );
 }

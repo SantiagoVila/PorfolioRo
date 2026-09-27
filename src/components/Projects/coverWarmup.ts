@@ -2,8 +2,13 @@ import { getImageProps } from "next/image";
 
 /** `sizes` of the cover while held up to the viewer (transition body). */
 export const HELD_COVER_SIZES = "80vh";
-/** `sizes` of the cover when it fills the screen (transition fill + project hero). */
-export const FILL_COVER_SIZES = "100vw";
+/**
+ * `sizes` of the cover when it fills the screen: the transition's fill and each
+ * book's opening cover, so they are one and the same image (cached and decoded
+ * before the hand-off). The book's face is 240×321: on screens narrower than
+ * that it fills by height (75vh wide), otherwise by width.
+ */
+export const FILL_COVER_SIZES = "(max-aspect-ratio: 240/321) 75vh, 100vw";
 
 const warmed = new Set<string>();
 

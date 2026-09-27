@@ -8,6 +8,7 @@ import { DESK_OBJECTS } from "@/components/Studio/sceneLayout";
 import { measureCorners } from "@/components/Studio/Corners";
 import type { Quad } from "@/components/Studio/sceneLayout";
 import { loadExperience } from "./experiences";
+import { stateScrollY } from "@/components/Studio/worldStates";
 
 /**
  * Opening a desk object and returning to it.
@@ -61,18 +62,27 @@ export interface ProjectTransition {
 export const URL_PARAM = "project";
 export const HISTORY_KEY = "rmProject";
 
-// Segment A = desk ↔ held (0–1), segment B = held ↔ fill (1–2).
+type Bezier = [number, number, number, number];
+
+// Segment A = desk ↔ held (0–1), segment B = held ↔ fill (1–2). The flight is
+// one continuous motion: it eases out of the desk (or the screen), slows while
+// the object is held up to the viewer, but never stops there, and settles at
+// the end. The curves meet at the held pose with the same speed (end slope of
+// one × its segment's pace = start slope of the next × its pace: ≈ 0.32 t/s
+// opening, ≈ 0.44 t/s closing), so there is no stop-and-go in the middle.
 const TIMING = {
   open: {
-    A: { duration: 0.85, ease: [0.65, 0, 0.2, 1] as const },
-    B: { duration: 0.7, ease: [0.7, 0, 0.12, 1] as const },
+    A: { duration: 0.8, ease: [0.55, 0, 0.5, 0.87] as Bezier },
+    B: { duration: 0.7, ease: [0.4, 0.09, 0.15, 1] as Bezier },
   },
   close: {
-    B: { duration: 0.6, ease: [0.45, 0, 0.25, 1] as const },
-    A: { duration: 0.85, ease: [0.35, 0, 0.15, 1] as const },
+    B: { duration: 0.55, ease: [0.45, 0, 0.6, 0.9] as Bezier },
+    A: { duration: 0.85, ease: [0.3, 0.11, 0.15, 1] as Bezier },
   },
   shellIn: 0.45,
   shellOut: 0.3,
+  /** Closing: the flight starts this far into the project's fade-out, not after it. */
+  closeOverlap: 0.6,
   reduced: 0.35,
 };
 
@@ -118,6 +128,8 @@ export function useProjectTransition(): ProjectTransition {
   const controlsRef = useRef<AnimationPlaybackControls | null>(null);
   const shellControlsRef = useRef<AnimationPlaybackControls | null>(null);
   const pendingStartRef = useRef<(() => void) | null>(null);
+  /** Leaves a project whose code could not be fetched (set to requestClose below). */
+  const abandonRef = useRef<() => void>(() => {});
   const reducedRef = useRef(reducedMotion);
   useEffect(() => {
     reducedRef.current = reducedMotion;
@@ -144,17 +156,23 @@ export function useProjectTransition(): ProjectTransition {
         await c.finished;
         return seq === seqRef.current;
       }
-      const forward = target > t.get();
-      for (const stop of forward ? [1, 2] : [1, 0]) {
-        const from = t.get();
-        if (forward ? from >= stop : from <= stop) continue;
-        const inA = forward ? stop === 1 : stop === 0;
-        const seg = forward ? (inA ? TIMING.open.A : TIMING.open.B) : inA ? TIMING.close.A : TIMING.close.B;
-        const c = animate(t, stop, { duration: seg.duration * Math.abs(stop - from), ease: [...seg.ease] });
-        controlsRef.current = c;
-        await c.finished;
-        if (seq !== seqRef.current) return false;
+      const from = t.get();
+      if (from === target) return seq === seqRef.current;
+      const forward = target > from;
+      // The part of the path still ahead: through the held pose (one animation, two
+      // curves meeting at the same speed) or, from beyond it, straight on.
+      const [first, second] = forward ? [TIMING.open.A, TIMING.open.B] : [TIMING.close.B, TIMING.close.A];
+      const throughHeld = forward ? from < 1 : from > 1;
+      let c: AnimationPlaybackControls;
+      if (throughHeld) {
+        const d1 = first.duration * Math.abs(1 - from);
+        const d2 = second.duration;
+        c = animate(t, [from, 1, target], { duration: d1 + d2, times: [0, d1 / (d1 + d2), 1], ease: [first.ease, second.ease] });
+      } else {
+        c = animate(t, target, { duration: second.duration * Math.abs(target - from), ease: second.ease });
       }
+      controlsRef.current = c;
+      await c.finished;
       return seq === seqRef.current;
     },
     [t]
@@ -188,8 +206,15 @@ export function useProjectTransition(): ProjectTransition {
       if (!(await run(2, seq))) return;
       // The project's code: normally fetched long before (preloadExperiences);
       // if not, the filled frame (its own first frame) simply holds until it is.
-      await loadExperience(activeRef.current!.id).catch(() => {});
+      // If it can't be fetched at all (the connection dropped), the object flies
+      // back to its place on the desk, as Back would take it, instead of leaving
+      // the reader on a frame with no way out.
+      const loaded = await loadExperience(activeRef.current!.id).then(() => true, () => false);
       if (seq !== seqRef.current) return;
+      if (!loaded) {
+        abandonRef.current();
+        return;
+      }
       // Mount the project only once the screen is filled and still: its first
       // render is the one expensive moment, and here it can't cause a hitch in
       // the flight. Its hero is the image already on screen, so it's cached.
@@ -208,10 +233,18 @@ export function useProjectTransition(): ProjectTransition {
     pendingStartRef.current = null;
     controlsRef.current?.stop();
     setPhase("closing");
-    if (!(await fadeShell(0, seq))) return;
-    if (!(await run(0, seq))) return;
+    // The project fades and, before it is quite gone, the object starts on its
+    // way back (slowly at first, so the two never fight).
+    const showing = shellOpacity.get() > 0;
+    const faded = fadeShell(0, seq);
+    if (showing) {
+      await new Promise((r) => setTimeout(r, TIMING.shellOut * TIMING.closeOverlap * 1000));
+      if (seq !== seqRef.current) return;
+    }
+    const landed = run(0, seq);
+    if (!(await faded) || !(await landed)) return;
     finishClosed();
-  }, [fadeShell, run, finishClosed, setPhase]);
+  }, [fadeShell, run, finishClosed, setPhase, shellOpacity]);
 
   const open = useCallback(
     (id: string, el: HTMLElement, { push = true } = {}) => {
@@ -262,6 +295,9 @@ export function useProjectTransition(): ProjectTransition {
       void close();
     }
   }, [close]);
+  useEffect(() => {
+    abandonRef.current = requestClose;
+  }, [requestClose]);
 
   // Escape leaves the project, and also cancels an opening mid-flight.
   const escapable = phase === "opening" || phase === "open";
@@ -295,7 +331,7 @@ export function useProjectTransition(): ProjectTransition {
     const id = new URLSearchParams(window.location.search).get(URL_PARAM);
     const obj = id ? describe(id) : null;
     if (!id || !obj) return;
-    window.scrollTo(0, document.documentElement.scrollHeight);
+    window.scrollTo(0, stateScrollY(1)); // the desk (the Work state)
     const seq = ++seqRef.current;
     elRef.current = deskElement(id);
     activeRef.current = obj;
@@ -305,11 +341,16 @@ export function useProjectTransition(): ProjectTransition {
     setLiftedId(id);
     setPhase("opening");
     /* eslint-enable react-hooks/set-state-in-effect */
-    // The project is shown once its code is here (the filled frame holds meanwhile).
+    // The project is shown once its code is here (the filled frame holds meanwhile);
+    // if its code can't be fetched, the object settles back onto the desk instead.
     void loadExperience(id)
-      .catch(() => {})
-      .then(() => {
+      .then(() => true, () => false)
+      .then((loaded) => {
         if (seq !== seqRef.current) return;
+        if (!loaded) {
+          abandonRef.current();
+          return;
+        }
         setShellMounted(true);
         setPhase("open");
         void fadeShell(1, seq);

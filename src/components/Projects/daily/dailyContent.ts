@@ -1,11 +1,10 @@
 /**
- * THE DAILY: the three stories it carries, from the real source material.
+ * THE DAILY: the three stories it carries.
  *
- * Source of truth: periodismo/editorial/ (three PDFs; the other three files
- * in periodismo/ are byte-identical duplicates). Every headline, deck and
- * credit below is quoted from those documents; the kickers name what each
- * document says it is. Images are derivatives in public/daily/ (see the Phase 8
- * report); the PDFs themselves are served from public/periodismo/editorial/.
+ * Every headline, deck and credit below is quoted from the three original
+ * documents, which are served as PDFs from public/periodismo/editorial/; the
+ * kickers name what each document says it is. Images are derivatives in
+ * public/daily/.
  */
 
 export type StoryId = "artlab" | "arteba" | "explorers";

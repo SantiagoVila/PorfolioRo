@@ -1,7 +1,5 @@
 "use client";
 
-import type { ReactNode } from "react";
-
 /** The newspaper's type, shared with the newspaper on the desk. */
 export { serif, narrow } from "./identity";
 
@@ -31,4 +29,3 @@ export function Grain({ opacity = 1 }: { opacity?: number }) {
   return <div aria-hidden className="absolute inset-0 pointer-events-none" style={{ backgroundImage: "url(/daily/grain.png)", backgroundSize: "128px 128px", opacity }} />;
 }
 
-export type Children = { children?: ReactNode };

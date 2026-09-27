@@ -67,7 +67,7 @@ export function useIdleCursor(
     onFrameRef.current = onFrame;
     restRef.current = rest;
     acceptTouchRef.current = acceptTouch;
-    // The pose may have changed (desk ↔ Scene 1): let the loop run to it.
+    // The pose may have changed (desk ↔ intro): let the loop run to it.
     wakeRef.current();
   });
 
@@ -157,7 +157,7 @@ export function useIdleCursor(
       return diff;
     };
 
-    // One step per animation frame. The free spin (Scene 1, no input) never
+    // One step per animation frame. The free spin (the intro, no input) never
     // stops; anything easing towards a pose goes to sleep once it is there,
     // and input, the return timer or a change of pose wakes it again.
     const tick = () => {

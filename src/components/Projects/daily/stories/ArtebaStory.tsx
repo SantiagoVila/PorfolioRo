@@ -329,7 +329,7 @@ function Ending({ onBack }: { onBack: () => void }) {
         <a href={story.pdf.href} target="_blank" rel="noopener" className="border-b pb-1 outline-none focus-visible:ring-2" style={{ borderColor: INK }}>
           {story.pdf.label} ↗
         </a>
-        <button onClick={onBack} aria-label="Back to The Daily" className="border-b pb-1 uppercase tracking-[0.16em] outline-none focus-visible:ring-2" style={{ borderColor: INK }}>
+        <button onClick={onBack} lang="en" aria-label="Back to The Daily" className="border-b pb-1 uppercase tracking-[0.16em] outline-none focus-visible:ring-2" style={{ borderColor: INK }}>
           ← The Daily
         </button>
       </div>

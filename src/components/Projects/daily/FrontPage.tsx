@@ -69,7 +69,7 @@ function Masthead({ size, onEnter, onPromote, opening, go, reduced, compact }: {
         animate={wait ? { opacity: 0 } : { opacity: 1 }}
         transition={{ delay: 0.55, duration: 0.5 }}
       >
-        <span>{ISSUE.volume} — {ISSUE.section}</span>
+        <span lang="en">{ISSUE.volume} — {ISSUE.section}</span>
         <span>{ISSUE.years}</span>
       </motion.div>
       <motion.div
@@ -82,6 +82,7 @@ function Masthead({ size, onEnter, onPromote, opening, go, reduced, compact }: {
       <div className={compact ? "flex flex-col items-center" : "grid grid-cols-[1fr_auto_1fr] items-center"} style={{ paddingBlock: size * 0.07 }}>
         {!compact && (
           <motion.span
+            lang="en"
             className={`${narrow.className} uppercase tracking-[0.18em] font-semibold leading-[1.25] opacity-80`}
             style={{ fontSize: flank }}
             initial={print ? { opacity: 0 } : false}
@@ -92,6 +93,7 @@ function Masthead({ size, onEnter, onPromote, opening, go, reduced, compact }: {
           </motion.span>
         )}
         <motion.h2
+          lang="en"
           className="leading-none"
           initial={print ? { opacity: 0, scale: 0.985 } : false}
           animate={wait ? { opacity: 0, scale: 0.985 } : { opacity: 1, scale: 1 }}

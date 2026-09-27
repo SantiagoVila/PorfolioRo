@@ -1,62 +1,31 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion, useMotionValue, useScroll, useTransform } from "framer-motion";
+import { useRef } from "react";
+import { motion, useTransform } from "framer-motion";
 import HeroStage from "@/components/HeroStage";
+import SiteHeader from "@/components/SiteHeader";
+import AboutContact from "@/components/Studio/AboutContact";
+import StudioScene from "@/components/Studio/StudioScene";
 import StudioTable from "@/components/Studio/StudioTable";
+import { SCROLL_SCREENS } from "@/components/Studio/worldStates";
 import ProjectShell from "@/components/Projects/ProjectShell";
 import ProjectTransitionLayer from "@/components/Projects/ProjectTransitionLayer";
 import { useProjectTransition } from "@/components/Projects/useProjectTransition";
 import { clamp01 } from "@/components/Projects/transitionGeometry";
-import { useStageFit } from "@/hooks/useStageFit";
-import { STAGE_FIT } from "@/components/Studio/sceneLayout";
+import { useWorld } from "@/hooks/useWorld";
 import { PROJECTS } from "@/data/projectsData";
 
+/**
+ * The portfolio: one place, Rosario's studio, seen through one camera that
+ * the page's scroll moves through four states (see Studio/worldStates):
+ * her name and the cap → the desk and its projects → her own material on the
+ * wall → a card to reach her. Projects open from their objects on the desk
+ * into their own worlds, and close back onto them.
+ */
 export default function Home() {
-  const containerRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
-
-  const { scrollYProgress } = useScroll({
-    target: containerRef,
-    offset: ["start start", "end end"]
-  });
-
-  // Framer hands opacity transforms of a targeted useScroll to a native
-  // ViewTimeline, which mistracks this sticky 200vh layout (opacities drift
-  // and snap back to 1 at the end). A function transform drops that
-  // acceleration so every derived value follows the same JS-driven progress.
-  const progress = useTransform(scrollYProgress, (v) => v);
-
-  // One stage fit for the pinned screen: the desk is laid out with it, and the
-  // Scene 1 cap uses it to land exactly on its spot on the desk.
-  const stageFit = useStageFit(stickyRef, STAGE_FIT);
-  // Phones explore the desk sideways (see useDeskPan); the cap travels with it.
-  const deskPan = useMotionValue(0);
-
-  // The page is two screens tall, so after the phone is turned (or the window
-  // resized) the old scroll offset would land partway back to the landing.
-  // Whoever was at the desk stays at the desk. Toolbars showing or hiding
-  // (a small change in height only) are left alone.
-  useEffect(() => {
-    const bottom = () => document.documentElement.scrollHeight - window.innerHeight;
-    let atDesk = window.scrollY >= bottom() - 2;
-    let size = [window.innerWidth, window.innerHeight];
-    const onScroll = () => {
-      atDesk = window.scrollY >= bottom() - 2;
-    };
-    const onResize = () => {
-      const [w, h] = size;
-      size = [window.innerWidth, window.innerHeight];
-      if (w === window.innerWidth && Math.abs(h - window.innerHeight) < 150) return;
-      if (atDesk) window.scrollTo(0, bottom());
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onResize);
-    };
-  }, []);
+  const svhRef = useRef<HTMLDivElement>(null);
+  const world = useWorld(stickyRef, svhRef);
 
   // Opening a desk object: the object lifts towards the viewer while the
   // studio recedes behind it (blur, dim, a slight pull-back), then the
@@ -69,28 +38,30 @@ export default function Home() {
     return reducedMotion ? `brightness(${1 - 0.45 * k})` : `blur(${5 * k}px) brightness(${1 - 0.45 * k})`;
   });
   const sceneScale = useTransform(t, (v) => (reducedMotion ? 1 : 1 - 0.035 * clamp01(v)));
+  const headerOpacity = useTransform(t, (v) => 1 - clamp01(v * 1.5));
 
   return (
     <main
-      ref={containerRef}
-      className="relative bg-[var(--color-paper)] h-[200vh] text-[var(--color-ink)] selection:bg-[var(--color-diva-pink)] selection:text-white"
+      className="relative bg-[var(--color-paper)] text-[var(--color-ink)] selection:bg-[var(--color-diva-pink)] selection:text-white"
+      style={{ height: `${(SCROLL_SCREENS + 1) * 100}vh` }}
     >
-      {/* Sticky container for the 3D-like transition */}
+      {/* First in reading order; fixed over the scene. */}
+      <SiteHeader world={world} opacity={headerOpacity} inert={phase !== "idle"} />
+
+      {/* The studio, pinned while the page scrolls through it */}
       <div ref={stickyRef} className="sticky top-0 w-full h-screen overflow-hidden bg-[#1a1612]">
         <motion.div
-          className="absolute inset-0 bg-[var(--color-paper)]"
+          className="absolute inset-0"
           style={{ filter: sceneFilter, scale: sceneScale }}
           inert={phase !== "idle"}
         >
-          <HeroStage scrollYProgress={progress} stageFit={stageFit} deskPan={deskPan} />
-          <StudioTable
-            scrollYProgress={progress}
-            stageFit={stageFit}
-            pan={deskPan}
-            onSelectProject={transition.open}
-            liftedId={transition.liftedId}
-          />
+          <StudioScene world={world} onSelectProject={transition.open} liftedId={transition.liftedId} />
+          <HeroStage world={world} />
+          <StudioTable world={world} />
+          <AboutContact world={world} />
         </motion.div>
+        {/* The height surely visible with a phone's browser bars showing */}
+        <div ref={svhRef} aria-hidden className="absolute left-0 top-0 w-px invisible pointer-events-none" style={{ height: "100svh" }} />
       </div>
 
       <ProjectTransitionLayer transition={transition} />
