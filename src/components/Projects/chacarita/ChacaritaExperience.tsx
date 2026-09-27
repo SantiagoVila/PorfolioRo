@@ -42,6 +42,20 @@ const DARK = "#131210";
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
 const CURTAIN = "cubic-bezier(0.77, 0, 0.18, 1)";
 
+/**
+ * How a photograph arrives, by its weight on the page (seconds; `from` is the
+ * scale it settles from). A chapter's lead picture turns in like a page; the
+ * smaller ones follow quickly, so a reader never scrolls into a covered
+ * picture. Both start as the photograph reaches the screen's edge. The closing
+ * door keeps the full, slow ceremony and its later start.
+ */
+const REVEAL = {
+  lead: { curtain: 0.85, settle: 1.2, from: 1.08, margin: "0px 0px 5% 0px" },
+  support: { curtain: 0.6, settle: 0.9, from: 1.05, margin: "0px 0px 5% 0px" },
+  door: { curtain: 1.15, settle: 1.7, from: 1.14, margin: "0px 0px -10% 0px" },
+} as const;
+type Weight = keyof typeof REVEAL;
+
 type Ctx = {
   scroller: RefObject<HTMLDivElement | null>;
   box: Box;
@@ -98,8 +112,8 @@ export default function ChacaritaExperience({ onClose }: ExperienceProps) {
 
 /* ─────────────────────────────── pieces ─────────────────────────────── */
 
-/** Whether `ref` has come into view (once). With reduced motion, always. */
-function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElement | null>, reduced: boolean) {
+/** Whether `ref` has come into view (once), `margin` being the observer's root margin. With reduced motion, always. */
+function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElement | null>, reduced: boolean, margin = "0px 0px -10% 0px") {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const el = ref.current;
@@ -111,11 +125,11 @@ function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElemen
           io.disconnect();
         }
       },
-      { root: root.current, rootMargin: "0px 0px -10% 0px", threshold: 0.01 },
+      { root: root.current, rootMargin: margin, threshold: 0.01 },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [ref, root, reduced]);
+  }, [ref, root, reduced, margin]);
   return reduced || shown;
 }
 
@@ -123,22 +137,24 @@ function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElemen
  * A photograph in a frame of the given ratio (default: its own), cut to
  * `pos` (object-position), optionally a closer detail (`zoom` around `pos`)
  * and in grey. It arrives from under a sheet of the page's paper that slides
- * off, settling from a little closer; on hover it leans in slightly.
+ * off, settling from a little closer, as its `weight` says; on hover it leans
+ * in slightly.
  */
 function Photo({
-  f, ctx, ratio, pos = "50% 50%", zoom = 1, gray = false, sizes = "100vw", eager = false, delay = 0, className = "", style, children,
+  f, ctx, ratio, pos = "50% 50%", zoom = 1, gray = false, sizes = "100vw", eager = false, delay = 0, weight = "support", className = "", style, children,
 }: {
   f: Frame; ctx: Ctx; ratio?: number; pos?: string; zoom?: number; gray?: boolean; sizes?: string; eager?: boolean; delay?: number;
-  className?: string; style?: CSSProperties; children?: ReactNode;
+  weight?: Weight; className?: string; style?: CSSProperties; children?: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const shown = useShown(ref, ctx.scroller, ctx.reduced);
+  const r = REVEAL[weight];
+  const shown = useShown(ref, ctx.scroller, ctx.reduced, r.margin);
   const still = ctx.reduced;
   return (
     <div ref={ref} className={`group relative overflow-hidden ${className}`} style={{ aspectRatio: ratio ?? f.aspect, ...style }}>
       <div
         className="absolute inset-0"
-        style={{ transform: shown ? "scale(1)" : "scale(1.14)", transition: still ? undefined : `transform 1.7s ${EASE} ${delay}ms` }}
+        style={{ transform: shown ? "scale(1)" : `scale(${r.from})`, transition: still ? undefined : `transform ${r.settle}s ${EASE} ${delay}ms` }}
       >
         <div className="absolute inset-0 transition-transform duration-[1400ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.035]">
           <div className="absolute inset-0" style={{ transform: zoom !== 1 ? `scale(${zoom})` : undefined, transformOrigin: pos }}>
@@ -159,7 +175,7 @@ function Photo({
         <div
           aria-hidden
           className="absolute inset-0 origin-top"
-          style={{ background: PAPER, transform: shown ? "scaleY(0)" : "scaleY(1)", transition: `transform 1.15s ${CURTAIN} ${delay}ms` }}
+          style={{ background: PAPER, transform: shown ? "scaleY(0)" : "scaleY(1)", transition: `transform ${r.curtain}s ${CURTAIN} ${delay}ms` }}
         />
       )}
       {children}
@@ -234,6 +250,11 @@ function Spread({ ctx, cols, children, style, id, label }: { ctx: Ctx; cols: num
 const span = (start: number, n: number): CSSProperties => ({ gridColumn: `${start} / span ${n}` });
 /** `sizes` for a photograph spanning n of `cols` columns. */
 const cw = (n: number, cols: number) => `${Math.ceil((n / cols) * 100)}vw`;
+/**
+ * Width of a chapter's large photograph on a spread: n of twelve columns, but
+ * never taller than 90 % of the screen (a phone held sideways sees all of it).
+ */
+const lead = (ctx: Ctx, n: number, ratio: number) => Math.min(((ctx.box.w - 2 * ctx.m - 11 * ctx.g) / 12) * n + ctx.g * (n - 1), ctx.box.h * 0.9 * ratio);
 
 /* ─────────────────────────────── the book opens ─────────────────────────────── */
 
@@ -384,9 +405,10 @@ function Hero({ ctx }: { ctx: Ctx }) {
 
 /**
  * The notebook's first spread: the shoes stepping over footprints stencilled
- * on the pavement (the public space the project reads as found art), and the
- * cup jacket walking the street (its wearable utility), with a grey detail of
- * the street's trees cut from the same frame.
+ * on the pavement (the public space the project reads as found art), large,
+ * and the cup jacket walking the street (its wearable utility), smaller and
+ * lower after the note, with a grey detail of the street's trees cut from the
+ * same frame.
  */
 function Ground({ ctx }: { ctx: Ctx }) {
   const { wide, box, m } = ctx;
@@ -396,7 +418,7 @@ function Ground({ ctx }: { ctx: Ctx }) {
       <>
         <Spread ctx={ctx} cols={6} id={CHAPTERS[0].id} label={`${CHAPTERS[0].n} ${CHAPTERS[0].title}`} style={{ paddingTop: 64 }}>
           <Heading n={CHAPTERS[0].n} title={CHAPTERS[0].title} ctx={ctx} style={span(1, 3)} />
-          <Photo f={ground} ctx={ctx} ratio={4 / 5} pos="50% 74%" style={{ ...span(1, 6), marginTop: 18 }}>
+          <Photo f={ground} ctx={ctx} ratio={4 / 5} pos="50% 74%" weight="lead" style={{ ...span(1, 6), marginTop: 18 }}>
             <Note ctx={ctx} rotate={-8} style={{ position: "absolute", right: 16, top: "52%", maxWidth: "52%" }}>
               {TEXT.ground}
             </Note>
@@ -407,37 +429,42 @@ function Ground({ ctx }: { ctx: Ctx }) {
           <Note ctx={ctx} rotate={-5} style={{ ...span(4, 3), alignSelf: "end", marginBottom: 6 }}>
             {TEXT.wearable}
           </Note>
-          <Photo f={cups} ctx={ctx} ratio={3 / 4} pos="50% 30%" style={{ ...span(1, 6), marginTop: 18 }} />
-          <Photo f={cups} ctx={ctx} ratio={1} pos="12% 6%" zoom={2.3} gray sizes="40vw" delay={200} style={{ ...span(1, 3), marginTop: -box.w * 0.18, marginLeft: -m / 2 }} />
+          <Photo f={cups} ctx={ctx} ratio={3 / 4} pos="50% 30%" weight="lead" style={{ ...span(1, 6), marginTop: 18 }} />
+          <Photo f={cups} ctx={ctx} ratio={1} pos="12% 6%" zoom={2.3} gray sizes="40vw" delay={90} style={{ ...span(1, 3), marginTop: -box.w * 0.18, marginLeft: -m / 2 }} />
         </Spread>
       </>
     );
   }
+  const w = lead(ctx, 7, 1);
   return (
     <Spread ctx={ctx} cols={12} id={CHAPTERS[0].id} label={`${CHAPTERS[0].n} ${CHAPTERS[0].title}, ${CHAPTERS[1].n} ${CHAPTERS[1].title}`} style={{ paddingTop: box.h * 0.12 }}>
-      <Photo f={ground} ctx={ctx} ratio={4 / 5} pos="50% 74%" sizes={cw(5, 12)} style={span(1, 5)}>
-        <Note ctx={ctx} rotate={-8} style={{ position: "absolute", right: "7%", top: "50%", maxWidth: "46%" }}>
+      <Photo f={ground} ctx={ctx} ratio={1} pos="50% 76%" sizes={`${Math.ceil(w)}px`} weight="lead" style={{ ...span(1, 7), gridRow: 1, width: w }}>
+        <Note ctx={ctx} rotate={-8} style={{ position: "absolute", right: "4%", top: "70%", maxWidth: "36%" }}>
           {TEXT.ground}
         </Note>
         <Heading n={CHAPTERS[0].n} title={CHAPTERS[0].title} ctx={ctx} style={{ position: "absolute", left: "6%", bottom: "5%" }} />
       </Photo>
-      <div style={{ ...span(6, 2), alignSelf: "end", paddingBottom: 8 }}>
+      <div style={{ ...span(8, 2), gridRow: 1, alignSelf: "end", paddingBottom: 8 }}>
         <Note ctx={ctx} rotate={-6}>{TEXT.wearable}</Note>
         <span aria-hidden className="mt-8 block text-[18px]">→</span>
       </div>
-      <Photo f={cups} ctx={ctx} ratio={3 / 4} pos="50% 34%" sizes={cw(4, 12)} delay={120} style={{ ...span(8, 4), marginTop: box.h * 0.1 }}>
+      <Photo f={cups} ctx={ctx} ratio={1 / 2.6} pos="10% 4%" zoom={2.6} gray sizes={cw(1, 12)} delay={90} style={{ ...span(9, 1), gridRow: 1, marginTop: box.h * 0.06 }} />
+      <Photo f={cups} ctx={ctx} ratio={3 / 4} pos="50% 34%" sizes={cw(3, 12)} delay={90} style={{ ...span(10, 3), gridRow: 1, marginTop: box.h * 0.22 }}>
         <div id={CHAPTERS[1].id} className="absolute" style={{ left: "6%", top: "5%", scrollMarginTop: box.h * 0.12 }}>
           <Heading n={CHAPTERS[1].n} title={CHAPTERS[1].title} ctx={ctx} />
         </div>
       </Photo>
-      <Photo f={cups} ctx={ctx} ratio={1 / 2.6} pos="10% 4%" zoom={2.6} gray sizes={cw(1, 12)} delay={260} style={{ ...span(12, 1), marginTop: box.h * 0.1 }} />
     </Spread>
   );
 }
 
 /* ─────────────────────────────── 03 the bus ─────────────────────────────── */
 
-/** Night on the colectivo: each figure alone, then the couple on the back seats, overlapping like prints on a table. */
+/**
+ * Night on the colectivo: each figure alone, a pair of small prints; then the
+ * couple on the back seats, the chapter's large print, laid over the edge of
+ * the driver's as on a table.
+ */
 function Bus({ ctx }: { ctx: Ctx }) {
   const { wide, box } = ctx;
   const { busStanding: standing, busDriver: driver, busCouple: couple } = FRAMES;
@@ -450,11 +477,14 @@ function Bus({ ctx }: { ctx: Ctx }) {
           {TEXT.bus}
         </Note>
         <Photo f={standing} ctx={ctx} ratio={2 / 3} pos="50% 42%" sizes="50vw" style={{ ...span(1, 3), marginTop: 18 }} />
-        <Photo f={driver} ctx={ctx} ratio={2 / 3} pos="42% 55%" sizes="50vw" delay={120} style={{ ...span(4, 3), marginTop: 18 + box.w * 0.12 }} />
-        <Photo f={couple} ctx={ctx} ratio={4 / 5} pos="52% 62%" style={{ ...span(1, 6), marginTop: -box.w * 0.06 }} />
+        <Photo f={driver} ctx={ctx} ratio={2 / 3} pos="42% 55%" sizes="50vw" delay={90} style={{ ...span(4, 3), marginTop: 18 + box.w * 0.12 }} />
+        <Photo f={couple} ctx={ctx} ratio={4 / 5} pos="52% 62%" weight="lead" style={{ ...span(1, 6), marginTop: -box.w * 0.06 }} />
       </Spread>
     );
   }
+  // The couple overlaps the driver's print by three gutters and reaches the
+  // page's margin, but stays below 82 % of the screen: one row, like a table.
+  const w = Math.min(lead(ctx, 5, 4 / 5) + ctx.g * 3, box.h * 0.82 * (4 / 5));
   return (
     <Spread ctx={ctx} cols={12} id={c.id} label={`${c.n} ${c.title}`} style={{ paddingTop: box.h * 0.1 }}>
       <div style={span(1, 2)}>
@@ -463,9 +493,9 @@ function Bus({ ctx }: { ctx: Ctx }) {
           {TEXT.bus}
         </Note>
       </div>
-      <Photo f={standing} ctx={ctx} ratio={2 / 3} pos="50% 42%" sizes={cw(3, 12)} style={span(3, 3)} />
-      <Photo f={driver} ctx={ctx} ratio={2 / 3} pos="42% 55%" sizes={cw(3, 12)} delay={120} style={{ ...span(6, 3), marginTop: box.h * 0.12 }} />
-      <Photo f={couple} ctx={ctx} ratio={3 / 4} pos="52% 62%" sizes={cw(4, 12)} delay={240} style={{ ...span(9, 4), marginTop: box.h * 0.04, marginLeft: -ctx.g * 3, boxShadow: "0 24px 50px -28px rgba(20,16,12,0.55)" }} />
+      <Photo f={standing} ctx={ctx} ratio={2 / 3} pos="50% 42%" sizes={cw(2, 12)} style={span(4, 2)} />
+      <Photo f={driver} ctx={ctx} ratio={2 / 3} pos="42% 55%" sizes={cw(2, 12)} delay={90} style={{ ...span(6, 2), marginTop: box.h * 0.14 }} />
+      <Photo f={couple} ctx={ctx} ratio={4 / 5} pos="50% 92%" sizes={`${Math.ceil(w)}px`} weight="lead" style={{ ...span(8, 5), width: w, marginTop: box.h * 0.04, marginLeft: -ctx.g * 3, boxShadow: "0 24px 50px -28px rgba(20,16,12,0.55)" }} />
     </Spread>
   );
 }
@@ -586,7 +616,11 @@ function Film({ ctx, width }: { ctx: Ctx; width: number }) {
 
 /* ─────────────────────────────── 04 the café ─────────────────────────────── */
 
-/** By day, the two of them at a café: standing, then seated at the small round table; a grey detail of the palm above them. */
+/**
+ * By day, the two of them at a café: standing, large, then seated at the small
+ * round table, smaller and lower; a grey detail of the palm above them (on a
+ * spread, under the chapter's name). The chapter settles before the closing door.
+ */
 function Cafe({ ctx }: { ctx: Ctx }) {
   const { wide, box, m } = ctx;
   const { cafeStanding: standing, cafeSeated: seated } = FRAMES;
@@ -596,17 +630,18 @@ function Cafe({ ctx }: { ctx: Ctx }) {
       <Spread ctx={ctx} cols={6} id={c.id} label={`${c.n} ${c.title}`} style={{ paddingTop: 72 }}>
         <Heading n={c.n} title={c.title} ctx={ctx} style={span(1, 3)} />
         <Photo f={seated} ctx={ctx} ratio={1} pos="40% 8%" zoom={2.2} gray sizes="40vw" style={{ ...span(5, 2), alignSelf: "end" }} />
-        <Photo f={standing} ctx={ctx} ratio={4 / 5} pos="50% 30%" sizes="84vw" style={{ ...span(1, 5), marginTop: 18, marginLeft: -m / 2 }} />
-        <Photo f={seated} ctx={ctx} ratio={4 / 5} pos="50% 48%" sizes="80vw" delay={120} style={{ ...span(2, 5), marginTop: -box.w * 0.1, marginRight: -m / 2, boxShadow: "0 22px 44px -26px rgba(20,16,12,0.55)" }} />
+        <Photo f={standing} ctx={ctx} ratio={4 / 5} pos="50% 30%" sizes="84vw" weight="lead" style={{ ...span(1, 5), marginTop: 18, marginLeft: -m / 2 }} />
+        <Photo f={seated} ctx={ctx} ratio={4 / 5} pos="50% 48%" sizes="80vw" delay={90} style={{ ...span(2, 5), marginTop: -box.w * 0.1, marginRight: -m / 2, boxShadow: "0 22px 44px -26px rgba(20,16,12,0.55)" }} />
       </Spread>
     );
   }
+  const w = lead(ctx, 5, 4 / 5);
   return (
-    <Spread ctx={ctx} cols={12} id={c.id} label={`${c.n} ${c.title}`} style={{ paddingTop: box.h * 0.1 }}>
-      <Heading n={c.n} title={c.title} ctx={ctx} style={span(1, 2)} />
-      <Photo f={standing} ctx={ctx} ratio={4 / 5} pos="50% 30%" sizes={cw(4, 12)} style={span(3, 4)} />
-      <Photo f={seated} ctx={ctx} ratio={4 / 5} pos="50% 48%" sizes={cw(4, 12)} delay={120} style={{ ...span(7, 4), marginTop: box.h * 0.14 }} />
-      <Photo f={seated} ctx={ctx} ratio={3 / 4} pos="40% 8%" zoom={2.4} gray sizes={cw(2, 12)} delay={240} style={{ ...span(11, 2), marginTop: box.h * 0.02 }} />
+    <Spread ctx={ctx} cols={12} id={c.id} label={`${c.n} ${c.title}`} style={{ paddingTop: box.h * 0.1, paddingBottom: box.h * 0.06 }}>
+      <Heading n={c.n} title={c.title} ctx={ctx} style={{ ...span(1, 2), gridRow: 1 }} />
+      <Photo f={seated} ctx={ctx} ratio={3 / 4} pos="40% 8%" zoom={2.4} gray sizes={cw(2, 12)} delay={90} style={{ ...span(1, 2), gridRow: 1, alignSelf: "end" }} />
+      <Photo f={standing} ctx={ctx} ratio={4 / 5} pos="50% 30%" sizes={`${Math.ceil(w)}px`} weight="lead" style={{ ...span(3, 5), gridRow: 1, width: w }} />
+      <Photo f={seated} ctx={ctx} ratio={4 / 5} pos="50% 48%" sizes={cw(3, 12)} delay={90} style={{ ...span(9, 3), gridRow: 1, marginTop: box.h * 0.3 }} />
     </Spread>
   );
 }
@@ -619,7 +654,7 @@ function Doors({ ctx }: { ctx: Ctx }) {
   const c = CHAPTERS[4];
   return (
     <section id={c.id} aria-label={`${c.n} ${c.title}`} className="relative" style={{ marginTop: wide ? box.h * 0.18 : 88 }}>
-      <Photo f={FRAMES.blueDoor} ctx={ctx} ratio={wide ? Math.max(box.w / box.h, 1.6) : 3 / 4} pos={wide ? "50% 24%" : "50% 22%"}>
+      <Photo f={FRAMES.blueDoor} ctx={ctx} weight="door" ratio={wide ? Math.max(box.w / box.h, 1.6) : 3 / 4} pos={wide ? "50% 24%" : "50% 22%"}>
         <div aria-hidden className="absolute inset-0" style={{ background: "linear-gradient(to top right, rgba(12,10,8,0.5), rgba(12,10,8,0) 45%)" }} />
         <Heading n={c.n} title={c.title} ctx={ctx} light style={{ position: "absolute", left: m, bottom: wide ? box.h * 0.08 : 24, color: CREAM }} />
       </Photo>

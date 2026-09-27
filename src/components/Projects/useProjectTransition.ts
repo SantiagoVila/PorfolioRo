@@ -364,8 +364,20 @@ export function useProjectTransition(): ProjectTransition {
   // body.style.overflow (the Preloader) can neither undo nor leak the lock.
   const engaged = phase !== "idle";
   useEffect(() => {
-    document.documentElement.classList.toggle("project-open", engaged);
-    return () => document.documentElement.classList.remove("project-open");
+    const root = document.documentElement;
+    // The page's scrollbar goes while locked; its width is kept as padding (see
+    // globals.css) so the studio keeps its size and the desk does not shift
+    // when the scrollbar comes back. Measured on a probe, not the page, whose
+    // scrollbar the Preloader may be hiding; zero where scrollbars overlay.
+    if (engaged) {
+      const probe = document.createElement("div");
+      probe.style.cssText = "position:absolute;top:-999px;width:50px;height:50px;overflow:scroll";
+      document.body.appendChild(probe);
+      root.style.setProperty("--scrollbar-w", `${probe.offsetWidth - probe.clientWidth}px`);
+      probe.remove();
+    }
+    root.classList.toggle("project-open", engaged);
+    return () => root.classList.remove("project-open");
   }, [engaged]);
 
   // Back on the desk: return keyboard focus to the object that was opened.

@@ -65,7 +65,7 @@ export function workCamera(v: View): Camera {
   }
   const k = Math.min(v.w / (PORTRAIT.right - PORTRAIT.left), PORTRAIT_MAX_K);
   // The desk's front edge a little above the bottom of what is surely visible,
-  // leaving a strip of floor for the portfolio's years.
+  // leaving a strip of floor below it.
   return at(v, k, PORTRAIT.centreX, DESK_FRONT_Y, 0.88);
 }
 

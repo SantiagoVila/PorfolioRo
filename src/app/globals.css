@@ -18,9 +18,12 @@ html, body {
 
 /* A project is open or in transition: the studio underneath must not scroll.
    Only <html>: with <body> hidden too, body would become its own scroll
-   container and the sticky studio would jump away from the viewport. */
+   container and the sticky studio would jump away from the viewport. The
+   hidden scrollbar's width stays as padding (useProjectTransition sets it), so
+   the studio keeps its width and the desk does not shift when it returns. */
 html.project-open {
   overflow: hidden;
+  padding-right: var(--scrollbar-w, 0px);
 }
 
 /* Custom scrollbar */

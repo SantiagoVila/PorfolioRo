@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useCallback } from "react";
 
+/** The frame the speeds below are tuned to (60 Hz). */
+const FRAME_MS = 1000 / 60;
+
 /**
  * Holds the cap still on one frame instead of spinning. Cursor/touch turn it
  * within ±cursorRange frames of that pose; once input stops (after
@@ -13,7 +16,7 @@ export interface RestPose {
   /** Frame the cap rests on when nobody is interacting. */
   frame: number;
   cursorRange: number;
-  /** Per-frame easing towards the goal (gentler than free cursor mode). */
+  /** Per-frame (60 Hz) easing towards the goal (gentler than free cursor mode). */
   easing: number;
   /** Ms without input before returning to the rest frame. */
   returnDelay: number;
@@ -160,20 +163,29 @@ export function useIdleCursor(
     // One step per animation frame. The free spin (the intro, no input) never
     // stops; anything easing towards a pose goes to sleep once it is there,
     // and input, the return timer or a change of pose wakes it again.
-    const tick = () => {
+    // The speeds are per 60 Hz frame; each step is scaled by the time since
+    // the last one, so the cap turns at the same pace at 60, 120 or 144 Hz.
+    let last = 0;
+    const tick = (now: number) => {
       rafRef.current = 0;
+      // Elapsed time in 60 Hz frames. The first step after waking counts as one
+      // frame, and a stall (a hidden tab, a long task) as at most four: no jumps.
+      const dt = last ? Math.min(now - last, 4 * FRAME_MS) / FRAME_MS : 1;
+      last = now;
+      // A per-frame easing factor over dt frames.
+      const follow = (e: number) => 1 - Math.pow(1 - e, dt);
       const rp = restRef.current;
       let goal: number | null = null;
       if (rp) {
         // No input: hold the rest frame. Input: the cursor target (±maxTurn)
         // reinterpreted as ±cursorRange around it.
         goal = modeRef.current === "idle" ? rp.frame : rp.frame + (targetRef.current / maxTurn) * rp.cursorRange;
-        currentRef.current += wrapDiff(goal) * rp.easing;
+        currentRef.current += wrapDiff(goal) * follow(rp.easing);
       } else if (modeRef.current === "idle") {
-        currentRef.current += idleSpeed;
+        currentRef.current += idleSpeed * dt;
       } else {
         goal = targetRef.current;
-        currentRef.current += wrapDiff(goal) * easing;
+        currentRef.current += wrapDiff(goal) * follow(easing);
       }
       const settled = goal !== null && Math.abs(wrapDiff(goal)) < 0.01;
       if (settled) currentRef.current = goal!;
@@ -185,6 +197,7 @@ export function useIdleCursor(
       }
 
       if (!settled) rafRef.current = requestAnimationFrame(tick);
+      else last = 0;
     };
 
     wakeRef.current = () => {

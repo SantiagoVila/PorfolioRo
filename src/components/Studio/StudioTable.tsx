@@ -28,7 +28,7 @@ const PULSE: Keyframe[] = [
 
 /**
  * The desk's own words, present only while the desk is the subject: the one
- * instruction, and the portfolio's years along the floor. And the scroll cue,
+ * instruction, nothing else at the edges. And the scroll cue,
  * the one thing carried from the intro: under the hero at first, just above
  * the desk's edge in the wall's ink; as the camera comes down it travels into
  * the corner, turning light over the floor, and stays as the desk's "Scroll".
@@ -84,18 +84,6 @@ export default function StudioTable({ world }: { world: World }) {
         Select a project.
         <span aria-hidden className="block mt-4 text-xl font-light tracking-normal">+</span>
       </motion.p>
-
-      <motion.footer
-        aria-hidden
-        className="absolute inset-x-0 bottom-0 flex justify-between items-end text-[#efe8dc] py-8 pl-[max(env(safe-area-inset-left),2rem)] pr-[max(env(safe-area-inset-right),2rem)]"
-        // Above the phone's browser bars while they show (zero where there are none).
-        style={{ opacity: near, y, marginBottom: "calc(100lvh - 100svh + env(safe-area-inset-bottom))" }}
-      >
-        <div className="flex flex-col gap-1 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase">
-          <span>Portfolio</span>
-          <span>2024 — 2025</span>
-        </div>
-      </motion.footer>
 
       <motion.div
         aria-hidden

@@ -39,6 +39,13 @@ const PAPER_GREY = 234;
 const INK = "#0c0c0c";
 const SHUTTER = "cubic-bezier(0.76, 0, 0.24, 1)";
 const EASE = "cubic-bezier(0.16, 1, 0.3, 1)";
+/**
+ * The shutter fires as a frame reaches the screen's edge: a chapter's lead
+ * frame opens with a little more ceremony, the others fire quickly after it
+ * (seconds), so a reader never scrolls into a closed frame.
+ */
+const OPEN = { lead: 0.95, support: 0.75 };
+const FRAME_MARGIN = "0px 0px 5% 0px";
 
 type Ctx = { scroller: RefObject<HTMLDivElement | null>; box: Box; reduced: boolean; wide: boolean; m: number; g: number };
 
@@ -78,8 +85,8 @@ export default function BWExperience({ onClose }: ExperienceProps) {
 
 /* ─────────────────────────────── pieces ─────────────────────────────── */
 
-/** Whether `ref` has come into view (once). With reduced motion, always. */
-function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElement | null>, reduced: boolean) {
+/** Whether `ref` has come into view (once), `margin` being the observer's root margin. With reduced motion, always. */
+function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElement | null>, reduced: boolean, margin = "0px 0px -8% 0px") {
   const [shown, setShown] = useState(false);
   useEffect(() => {
     const el = ref.current;
@@ -91,27 +98,27 @@ function useShown(ref: RefObject<HTMLElement | null>, root: RefObject<HTMLElemen
           io.disconnect();
         }
       },
-      { root: root.current, rootMargin: "0px 0px -8% 0px", threshold: 0.01 },
+      { root: root.current, rootMargin: margin, threshold: 0.01 },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [ref, root, reduced]);
+  }, [ref, root, reduced, margin]);
   return reduced || shown;
 }
 
 /**
  * A still in a frame of the given ratio (default: its own), cut to `pos`. It
  * opens like a shutter, from its middle outwards (the observed element is the
- * unclipped frame: a clipped one never counts as in view). A small frame
- * number under it, as on a contact sheet.
+ * unclipped frame: a clipped one never counts as in view); a `lead` frame a
+ * little more slowly. A small frame number under it, as on a contact sheet.
  */
 function Frame({
-  s, ctx, ratio, pos = "50% 50%", sizes = "100vw", delay = 0, caption = true, style, className = "", eager = false,
+  s, ctx, ratio, pos = "50% 50%", sizes = "100vw", delay = 0, lead = false, caption = true, style, className = "", eager = false,
 }: {
-  s: Still; ctx: Ctx; ratio?: number; pos?: string; sizes?: string; delay?: number; caption?: boolean; style?: CSSProperties; className?: string; eager?: boolean;
+  s: Still; ctx: Ctx; ratio?: number; pos?: string; sizes?: string; delay?: number; lead?: boolean; caption?: boolean; style?: CSSProperties; className?: string; eager?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const shown = useShown(ref, ctx.scroller, ctx.reduced);
+  const shown = useShown(ref, ctx.scroller, ctx.reduced, FRAME_MARGIN);
   return (
     <figure ref={ref} className={`group ${className}`} style={style}>
       <div
@@ -120,7 +127,7 @@ function Frame({
           aspectRatio: ratio ?? s.width / s.height,
           background: grey(s.backdrop),
           clipPath: shown ? "inset(0% 0% 0% 0%)" : "inset(50% 0% 50% 0%)",
-          transition: ctx.reduced ? undefined : `clip-path 1.25s ${SHUTTER} ${delay}ms`,
+          transition: ctx.reduced ? undefined : `clip-path ${lead ? OPEN.lead : OPEN.support}s ${SHUTTER} ${delay}ms`,
         }}
       >
         <div className="absolute inset-0 transition-transform duration-[1600ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.03]">
@@ -140,7 +147,9 @@ function Frame({
 function Chapter({ n, title, ctx, children, style }: { n: string; title: string; ctx: Ctx; children?: ReactNode; style?: CSSProperties }) {
   const ref = useRef<HTMLDivElement>(null);
   const shown = useShown(ref, ctx.scroller, ctx.reduced);
-  const size = ctx.wide ? clamp(ctx.box.w * 0.032, 30, 50) : 32;
+  // On the narrowest spreads (a tablet held upright) the floor comes down with
+  // the page, so every name stays inside its columns and on the screen.
+  const size = ctx.wide ? clamp(ctx.box.w * 0.032, Math.min(30, ctx.box.w * 0.0355), 50) : 32;
   const t = (d: number): CSSProperties =>
     ctx.reduced ? {} : { opacity: shown ? 1 : 0, transform: shown ? "none" : "translateY(14px)", transition: `opacity 1s ${EASE} ${d}ms, transform 1.2s ${EASE} ${d}ms` };
   return (
@@ -311,8 +320,8 @@ function Silhouette({ ctx }: { ctx: Ctx }) {
     return (
       <Grid ctx={ctx} cols={6} label="02 Silhouette" style={{ ...top, paddingTop: 56 }}>
         <Chapter n="02" title="Silhouette" ctx={ctx} style={span(1, 6)} />
-        <Frame s={walk} ctx={ctx} ratio={2 / 3} pos="50% 40%" sizes="66vw" style={span(1, 4)} />
-        <Frame s={back} ctx={ctx} ratio={3 / 4} pos="50% 22%" sizes="40vw" delay={120} style={{ ...span(5, 2), alignSelf: "end" }} />
+        <Frame s={walk} ctx={ctx} ratio={2 / 3} pos="50% 40%" sizes="66vw" lead style={span(1, 4)} />
+        <Frame s={back} ctx={ctx} ratio={3 / 4} pos="50% 22%" sizes="40vw" delay={90} style={{ ...span(5, 2), alignSelf: "end" }} />
         <Frame s={close} ctx={ctx} ratio={4 / 5} pos="50% 22%" sizes="84vw" style={span(2, 5)} />
       </Grid>
     );
@@ -320,13 +329,13 @@ function Silhouette({ ctx }: { ctx: Ctx }) {
   return (
     <Grid ctx={ctx} cols={12} label="02 Silhouette" style={{ ...top, paddingTop: box.h * 0.14 }}>
       <Chapter n="02" title="Silhouette" ctx={ctx} style={{ ...span(1, 3), paddingTop: box.h * 0.06 }} />
-      <Frame s={walk} ctx={ctx} ratio={2 / 3} pos="50% 42%" sizes={cw(4, 12)} style={span(4, 4)} />
+      <Frame s={walk} ctx={ctx} ratio={2 / 3} pos="50% 42%" sizes={cw(4, 12)} lead style={span(4, 4)} />
       <div className="grid" style={{ ...span(8, 3), rowGap: ctx.g * 2 }}>
-        <Frame s={back} ctx={ctx} ratio={1} pos="50% 20%" sizes={cw(3, 12)} delay={120} />
-        <Frame s={close} ctx={ctx} ratio={1} pos="50% 24%" sizes={cw(3, 12)} delay={220} />
+        <Frame s={back} ctx={ctx} ratio={1} pos="50% 20%" sizes={cw(3, 12)} delay={90} />
+        <Frame s={close} ctx={ctx} ratio={1} pos="50% 24%" sizes={cw(3, 12)} delay={180} />
       </div>
       <Chapter n="03" title="Leather" ctx={ctx} style={{ ...span(11, 2), paddingTop: box.h * 0.06 }}>
-        <Frame s={DETAILS.rings} ctx={ctx} ratio={3 / 4} pos="50% 45%" sizes={cw(2, 12)} delay={320} style={{ marginTop: box.h * 0.1 }} />
+        <Frame s={DETAILS.rings} ctx={ctx} ratio={3 / 4} pos="50% 45%" sizes={cw(2, 12)} delay={270} style={{ marginTop: box.h * 0.1 }} />
       </Chapter>
     </Grid>
   );
@@ -343,27 +352,31 @@ function Leather({ ctx }: { ctx: Ctx }) {
     return (
       <Grid ctx={ctx} cols={6} label="03 Leather" style={{ paddingTop: 64 }}>
         <Chapter n="03" title="Leather" ctx={ctx} style={span(1, 6)} />
-        <Frame s={front} ctx={ctx} ratio={4 / 5} pos="50% 30%" style={span(1, 6)} />
+        <Frame s={front} ctx={ctx} ratio={4 / 5} pos="50% 30%" lead style={span(1, 6)} />
         <Frame s={fists} ctx={ctx} ratio={1} pos="50% 40%" sizes="50vw" style={span(1, 3)} />
-        <Frame s={DETAILS.rings} ctx={ctx} ratio={1} pos="50% 45%" sizes="50vw" delay={120} style={span(4, 3)} />
+        <Frame s={DETAILS.rings} ctx={ctx} ratio={1} pos="50% 45%" sizes="50vw" delay={90} style={span(4, 3)} />
         <Frame s={chains} ctx={ctx} ratio={4 / 3} pos="50% 45%" style={span(1, 6)} />
       </Grid>
     );
   }
   return (
     <Grid ctx={ctx} cols={12} label="03 Leather, continued" style={{ paddingTop: box.h * 0.1 }}>
-      <Frame s={front} ctx={ctx} ratio={4 / 5} pos="50% 26%" sizes={cw(4, 12)} style={span(1, 4)} />
-      <Frame s={fists} ctx={ctx} ratio={4 / 5} pos="50% 40%" sizes={cw(4, 12)} delay={120} style={span(5, 4)} />
-      <Frame s={chains} ctx={ctx} ratio={4 / 5} pos="50% 45%" sizes={cw(4, 12)} delay={240} style={span(9, 4)} />
+      <Frame s={front} ctx={ctx} ratio={4 / 5} pos="50% 26%" sizes={cw(4, 12)} lead style={span(1, 4)} />
+      <Frame s={fists} ctx={ctx} ratio={4 / 5} pos="50% 40%" sizes={cw(4, 12)} delay={90} style={span(5, 4)} />
+      <Frame s={chains} ctx={ctx} ratio={4 / 5} pos="50% 45%" sizes={cw(4, 12)} delay={180} style={span(9, 4)} />
     </Grid>
   );
 }
 
 /* ─────────────────────────────── 04 movement ─────────────────────────────── */
 
-/** Let go: the turn, the arm thrown up with the lace, the bullet belt under swinging ruffles. The three drift at their own speeds. */
+/**
+ * Let go, the edit's climax: the turn is the chapter's one large frame, the
+ * arm thrown up with the lace and the bullet belt under swinging ruffles
+ * smaller beside it. The three drift at their own speeds.
+ */
 function Movement({ ctx }: { ctx: Ctx }) {
-  const { wide, box, reduced, scroller } = ctx;
+  const { wide, box, reduced, scroller, m, g } = ctx;
   const ref = useRef<HTMLElement>(null);
   const { turn, raised } = STILLS;
   const belt = DETAILS.belt;
@@ -376,23 +389,28 @@ function Movement({ ctx }: { ctx: Ctx }) {
     return (
       <section ref={ref} aria-label="04 Movement" className="relative grid" style={{ gridTemplateColumns: "repeat(6, minmax(0, 1fr))", columnGap: ctx.g, rowGap: ctx.g * 2, padding: `72px ${ctx.m}px 0` }}>
         <Chapter n="04" title="Movement" ctx={ctx} style={span(1, 6)} />
-        <Frame s={turn} ctx={ctx} ratio={2 / 3} pos="50% 30%" sizes="50vw" style={span(1, 3)} />
-        <Frame s={raised} ctx={ctx} ratio={2 / 3} pos="50% 30%" sizes="50vw" delay={120} style={{ ...span(4, 3), marginTop: 48 }} />
-        <Frame s={belt} ctx={ctx} ratio={16 / 9} pos="50% 50%" style={span(1, 6)} />
+        {/* The release: the turn at the page's full width, the tallest frame of the edit. */}
+        <Frame s={turn} ctx={ctx} ratio={2 / 3} pos="50% 30%" lead style={span(1, 6)} />
+        <Frame s={raised} ctx={ctx} ratio={2 / 3} pos="50% 30%" sizes="50vw" style={span(1, 3)} />
+        <Frame s={belt} ctx={ctx} ratio={3 / 4} pos="46% 50%" sizes="50vw" delay={90} style={{ ...span(4, 3), marginTop: 48 }} />
       </section>
     );
   }
+  // The turn cut square, six columns wide but never taller than 90 % of the
+  // screen (a phone held sideways sees all of it); the belt under the
+  // chapter's name, the raised arm lower at the right.
+  const side = Math.min(((box.w - 2 * m - 11 * g) / 12) * 6 + g * 5, box.h * 0.9);
   return (
-    <section ref={ref} aria-label="04 Movement" className="relative grid items-start" style={{ gridTemplateColumns: "repeat(12, minmax(0, 1fr))", columnGap: ctx.g, padding: `${box.h * 0.18}px ${ctx.m}px ${box.h * 0.06}px` }}>
-      <Chapter n="04" title="Movement" ctx={ctx} style={{ ...span(1, 3), paddingTop: box.h * 0.04 }} />
-      <motion.div style={{ ...span(4, 3), y: y1 }}>
-        <Frame s={turn} ctx={ctx} ratio={2 / 3} pos="50% 30%" sizes={cw(3, 12)} />
+    <section ref={ref} aria-label="04 Movement" className="relative grid items-start" style={{ gridTemplateColumns: "repeat(12, minmax(0, 1fr))", columnGap: g, padding: `${box.h * 0.18}px ${m}px ${box.h * 0.06}px` }}>
+      <Chapter n="04" title="Movement" ctx={ctx} style={{ ...span(1, 3), gridRow: 1, paddingTop: box.h * 0.04 }} />
+      <motion.div style={{ ...span(1, 3), gridRow: 1, alignSelf: "end", y: y3 }}>
+        <Frame s={belt} ctx={ctx} ratio={belt.width / belt.height} pos="50% 50%" sizes={cw(3, 12)} delay={180} />
       </motion.div>
-      <motion.div style={{ ...span(7, 3), y: y2, marginTop: box.h * 0.08 }}>
-        <Frame s={raised} ctx={ctx} ratio={2 / 3} pos="50% 26%" sizes={cw(3, 12)} delay={120} />
+      <motion.div style={{ ...span(4, 6), gridRow: 1, width: side, justifySelf: "center", y: y1 }}>
+        <Frame s={turn} ctx={ctx} ratio={1} pos="50% 4%" sizes={`${Math.ceil(side)}px`} lead />
       </motion.div>
-      <motion.div style={{ ...span(10, 3), y: y3, marginTop: box.h * 0.02 }}>
-        <Frame s={belt} ctx={ctx} ratio={2 / 3} pos="46% 50%" sizes={cw(3, 12)} delay={240} />
+      <motion.div style={{ ...span(10, 3), gridRow: 1, y: y2, marginTop: box.h * 0.16 }}>
+        <Frame s={raised} ctx={ctx} ratio={2 / 3} pos="50% 26%" sizes={cw(3, 12)} delay={90} />
       </motion.div>
     </section>
   );
@@ -418,9 +436,9 @@ function Portrait({ ctx }: { ctx: Ctx }) {
         <Chapter n="05" title="Portrait" ctx={ctx} style={span(1, 6)}>
           {tagline}
         </Chapter>
-        <Frame s={seated} ctx={ctx} ratio={4 / 5} pos="50% 60%" style={span(1, 6)} />
+        <Frame s={seated} ctx={ctx} ratio={4 / 5} pos="50% 60%" lead style={span(1, 6)} />
         <Frame s={rest} ctx={ctx} ratio={3 / 4} pos="50% 30%" sizes="66vw" style={span(1, 4)} />
-        <Frame s={cuff} ctx={ctx} ratio={3 / 4} pos="50% 50%" sizes="34vw" delay={120} style={{ ...span(5, 2), alignSelf: "end" }} />
+        <Frame s={cuff} ctx={ctx} ratio={3 / 4} pos="50% 50%" sizes="34vw" delay={90} style={{ ...span(5, 2), alignSelf: "end" }} />
       </Grid>
     );
   }
@@ -429,9 +447,9 @@ function Portrait({ ctx }: { ctx: Ctx }) {
       <Chapter n="05" title="Portrait" ctx={ctx} style={{ ...span(1, 3), paddingTop: box.h * 0.06 }}>
         {tagline}
       </Chapter>
-      <Frame s={seated} ctx={ctx} ratio={4 / 5} pos="50% 62%" sizes={cw(4, 12)} style={span(4, 4)} />
-      <Frame s={rest} ctx={ctx} ratio={4 / 5} pos="50% 30%" sizes={cw(3, 12)} delay={120} style={span(8, 3)} />
-      <Frame s={cuff} ctx={ctx} ratio={2 / 3} pos="50% 50%" sizes={cw(2, 12)} delay={240} style={{ ...span(11, 2), marginTop: box.h * 0.18 }} />
+      <Frame s={seated} ctx={ctx} ratio={4 / 5} pos="50% 62%" sizes={cw(4, 12)} lead style={span(4, 4)} />
+      <Frame s={rest} ctx={ctx} ratio={4 / 5} pos="50% 30%" sizes={cw(3, 12)} delay={90} style={span(8, 3)} />
+      <Frame s={cuff} ctx={ctx} ratio={2 / 3} pos="50% 50%" sizes={cw(2, 12)} delay={180} style={{ ...span(11, 2), marginTop: box.h * 0.18 }} />
     </Grid>
   );
 }
