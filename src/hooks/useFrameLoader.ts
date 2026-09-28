@@ -4,11 +4,15 @@ import { useEffect, useRef, useState } from "react";
 
 const TOTAL_FRAMES = 92;
 /**
- * The cap's frames with a real, transparent contact shadow. Derived from the
- * originals in /frames (unchanged), whose shadow is an opaque patch of the white
- * studio floor that shows as a pale disc on anything darker.
+ * The cap's frames, cleaned from the originals (source-assets/cap-frames) by
+ * source-assets/derive-clean-frames.py: the whole cap as photographed (no
+ * holes where the floor was keyed out: the face print's greys, the dark inside
+ * seen through the back opening, the brim's edge), its edge freed of the white
+ * studio matte, and a real, transparent contact shadow where the floor was.
+ * /frames-grounded (their earlier derivation) is kept only as that script's
+ * source for the shadow.
  */
-const FRAMES_DIR = "/frames-grounded";
+const FRAMES_DIR = "/frames-clean";
 
 /**
  * Preloads the cap's frames. Loading completes once every frame has settled,

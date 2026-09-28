@@ -14,6 +14,13 @@ interface CapViewerProps {
   acceptTouch?: (x: number, y: number) => boolean;
 }
 
+/**
+ * The most device pixels the canvas holds per frame pixel: the approved
+ * intro's own (800 CSS px on a 2× screen). A larger backing store would only
+ * cost memory; the 720-px frames hold no more detail.
+ */
+const MAX_BACKING_PER_FRAME_PX = 2.25;
+
 /** Drawable: loaded and decoded, not broken. */
 const usable = (img: HTMLImageElement | null | undefined): img is HTMLImageElement => !!img && img.complete && img.naturalWidth > 0;
 
@@ -36,6 +43,10 @@ export default function CapViewer({ rest = null, acceptTouch }: CapViewerProps) 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { loaded, progress, images, totalFrames } = useFrameLoader();
 
+  // Each frame is drawn once, at the size the canvas occupies on screen in
+  // device pixels (up to MAX_BACKING_PER_FRAME_PX), with the browser's
+  // high-quality resampling: one clean scaling step instead of a 720-px bitmap
+  // stretched by the compositor.
   const { redraw } = useIdleCursor(
     (index) => {
       if (!loaded || !canvasRef.current) return;
@@ -44,6 +55,8 @@ export default function CapViewer({ rest = null, acceptTouch }: CapViewerProps) 
 
       const img = nearestFrame(images.current, index);
       if (img) {
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         ctx.drawImage(img, 0, 0, canvasRef.current.width, canvasRef.current.height);
       }
@@ -52,15 +65,26 @@ export default function CapViewer({ rest = null, acceptTouch }: CapViewerProps) 
   );
 
   useEffect(() => {
-    if (loaded && canvasRef.current) {
-      const img = nearestFrame(images.current, 0);
-      if (img) {
-        canvasRef.current.width = img.width;
-        canvasRef.current.height = img.height;
-        // Paint the frame the rotation loop is already on, not frame 0.
-        redraw();
-      }
-    }
+    const canvas = canvasRef.current;
+    if (!loaded || !canvas) return;
+    const img = nearestFrame(images.current, 0);
+    if (!img) return;
+    const fit = () => {
+      const w = (canvas.clientWidth || img.width) * (window.devicePixelRatio || 1);
+      const width = Math.max(1, Math.round(Math.min(w, img.width * MAX_BACKING_PER_FRAME_PX)));
+      const height = Math.max(1, Math.round((width * img.height) / img.width));
+      if (canvas.width === width && canvas.height === height) return;
+      canvas.width = width;
+      canvas.height = height;
+      // Paint the frame the rotation loop is already on, not frame 0.
+      redraw();
+    };
+    // The canvas keeps the frames' proportions while its backing store changes size.
+    canvas.style.aspectRatio = `${img.width} / ${img.height}`;
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(canvas);
+    return () => ro.disconnect();
   }, [loaded, images, redraw]);
 
   return (

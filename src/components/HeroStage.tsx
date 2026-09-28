@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { motion, useMotionValueEvent, useTransform } from "framer-motion";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { motion, useMotionValue, useMotionValueEvent, useTransform } from "framer-motion";
 import { Fraunces } from "next/font/google";
 import CapViewer, { CAP_CANVAS_MAX_WIDTH } from "./CapViewer";
 import { CAP_CROWN_TOP, CAP_DESK_FROM, CAP_DESK_REST, CAP_REST, CAP_SHADOW_BAND, PORTRAIT } from "./Studio/sceneLayout";
@@ -66,16 +66,23 @@ export default function HeroStage({ world }: { world: World }) {
   // the first part of the move, so it is already sitting on the desk, at its
   // size, when the objects come up in front of it, and the camera settles after.
   // Its size changes geometrically (an even shrink to the eye).
-  // (The camera changes with every change of s: it is the one dependency, s is read with it.)
-  const pose = useTransform(camera, (c: Camera) => {
+  // At rest in the intro the canvas holds the screen's own pixels (CapViewer);
+  // a fraction of a pixel off the grid, the compositor resamples every one of
+  // them (a 0.4 px offset costs a 1× screen a third of the cap's fine detail),
+  // so there it lands on the device-pixel grid, an offset that fades out on
+  // the way to the desk.
+  const grid = useMotionValue({ x: 0, y: 0 });
+  const pose = useTransform(() => {
+    const c = camera.get();
     const v = s.get();
+    const g = grid.get();
     if (!ready) return { scale: 1, x: 0, y: 0 };
     const desk = capOnDesk(view, c);
     if (v >= 1) return desk;
     const t = capLanding(v);
     // Placed against her name (see worldCamera's introLayout).
     const { heroY, capScale: hero } = world.intro;
-    return { scale: hero * Math.pow(desk.scale / hero, t), x: desk.x * t, y: heroY + (desk.y - heroY) * t };
+    return { scale: hero * Math.pow(desk.scale / hero, t), x: desk.x * t + g.x * (1 - t), y: heroY + (desk.y - heroY) * t + g.y * (1 - t) };
   });
   const capScale = useTransform(pose, (p) => p.scale);
   const capX = useTransform(pose, (p) => p.x);
@@ -88,6 +95,42 @@ export default function HeroStage({ world }: { world: World }) {
   // Entrance: as the curtain lifts, just after her name.
   const revealed = useRevealed();
   const hidden = world.reduced ? { opacity: 0 } : { opacity: 0, scale: 0.94, y: 24 };
+
+  // The grid offset is measured once the cap has entered and whenever its
+  // canvas, the screen or the intro layout changes, while the page is at the intro.
+  const [entered, setEntered] = useState(false);
+  const capLayerRef = useRef<HTMLDivElement>(null);
+  const toGrid = useCallback(() => {
+    const canvas = capLayerRef.current?.querySelector("canvas");
+    if (!canvas || s.get() !== 0) return;
+    const r = canvas.getBoundingClientRect();
+    const d = window.devicePixelRatio || 1;
+    const g = grid.get();
+    // Where it would be without the offset, and the offset that puts that on the grid.
+    const off = (v: number) => (Math.round(v * d) - v * d) / d;
+    const next = { x: off(r.left - g.x), y: off(r.top - g.y) };
+    if (Math.abs(next.x - g.x) > 0.001 || Math.abs(next.y - g.y) > 0.001) grid.set(next);
+  }, [s, grid]);
+  useEffect(() => {
+    const canvas = capLayerRef.current?.querySelector("canvas");
+    if (!entered || !canvas) return;
+    // Measured after the frame that lays the change out has been rendered.
+    let raf = 0;
+    const measure = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => (raf = requestAnimationFrame(toGrid)));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(canvas);
+    return () => {
+      cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+  }, [entered, toGrid, view, world.intro]);
+  useMotionValueEvent(s, "change", (v) => {
+    if (v === 0 && entered) requestAnimationFrame(() => requestAnimationFrame(toGrid));
+  });
 
   const roomLightRef = useRef<SVGFEColorMatrixElement>(null);
   useMotionValueEvent(s, "change", (v) => {
@@ -104,6 +147,7 @@ export default function HeroStage({ world }: { world: World }) {
         initial={hidden}
         animate={revealed ? { opacity: 1, scale: 1, y: 0 } : hidden}
         transition={{ duration: world.reduced ? 0.5 : 1.7, delay: world.reduced ? 0 : 0.5, ease: [0.16, 1, 0.3, 1] }}
+        onAnimationComplete={() => revealed && setEntered(true)}
       >
         <svg width="0" height="0" className="absolute" aria-hidden>
           <filter id={ROOM_LIGHT_FILTER_ID} colorInterpolationFilters="sRGB">
@@ -111,6 +155,7 @@ export default function HeroStage({ world }: { world: World }) {
           </filter>
         </svg>
         <motion.div
+          ref={capLayerRef}
           className="w-full h-full flex items-center justify-center"
           style={{ scale: capScale, x: capX, y: capY, filter: `url(#${ROOM_LIGHT_FILTER_ID})`, visibility: ready ? "visible" : "hidden" }}
         >
