@@ -8,7 +8,7 @@ import { BookCover, BookShadows, BookThickness } from "@/components/Studio/BookO
 import { NEWSPRINT, NewspaperEdge, NewspaperFront, NewspaperShadows } from "@/components/Studio/DiaryObject";
 import PrintLight from "@/components/Studio/PrintLight";
 import { edgeLocal } from "@/components/Studio/deskLight";
-import { DESK_OBJECTS, objectFor } from "@/components/Studio/sceneLayout";
+import { DESK_OBJECTS, deskLayoutFor, objectFor } from "@/components/Studio/sceneLayout";
 import type { ActiveObject, ProjectTransition } from "./useProjectTransition";
 import { clamp01, heldRect, lerpQuad, projectFillRect, rectQuad } from "./transitionGeometry";
 import { FILL_COVER_SIZES, HELD_COVER_SIZES } from "./coverWarmup";
@@ -52,7 +52,7 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
   // As it lay on the desk (the scene's layout for this screen): its thickness and the desk's light over it.
   const [lying] = useState(() => {
     const o = DESK_OBJECTS.find((d) => d.id === object.id);
-    return o ? objectFor(o, window.innerWidth / window.innerHeight < 1) : null;
+    return o ? objectFor(o, deskLayoutFor(window.innerWidth, window.innerHeight)) : null;
   });
   const edge = lying ? edgeLocal(lying) : 0;
 

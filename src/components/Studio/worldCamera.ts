@@ -6,13 +6,15 @@ import {
   DESK_FRONT_Y,
   DESK_OBJECTS,
   NAME_HEIGHT_EM,
-  PORTRAIT,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   WALL_ABOVE,
   WALL_EDGE_Y,
   WALL_TEXT,
+  arrangementFor,
   shapeOf,
+  type DeskLayout,
+  type WallText,
 } from "./sceneLayout";
 
 /** The labels on the desk in front of the work (stage y, their lower edge). */
@@ -40,8 +42,9 @@ export interface View {
   h: number;
   /** The part of it surely visible with browser bars showing (100svh). */
   hs: number;
-  /** Phones and tablets held upright get their own desk layout. */
+  /** Phones and tablets held upright get their own framing (and their own arrangement of the desk: `layout`). */
   portrait: boolean;
+  layout: DeskLayout;
   /** The landscape Studio framing (useStageFit; the framings here are worldCamera's own). */
   fit: { scale: number; x: number; y: number };
   /** The screen's safe-area inset at the top (a notch, a status bar over the page; 0 almost everywhere): the navigation moves down past it. */
@@ -72,6 +75,9 @@ function clampCam(v: View, c: Camera): Camera {
 const UNDER_NAV = 64;
 /** The same on upright screens, whose navigation takes two rows (the light's marks under the links). */
 const UNDER_NAV_UPRIGHT = 112;
+/** The upright arrangement this screen shows (a phone's or a tablet's). */
+const uprightOf = (v: View) => arrangementFor(v.layout === "tablet" ? "tablet" : "upright");
+
 /** The navigation's own top margin (SiteHeader: max(inset, 1.75rem)): how much of a top inset it already clears. */
 const NAV_TOP = 28;
 const underNav = (v: View, base: number) => base + Math.max(0, v.safeTop - NAV_TOP);
@@ -91,12 +97,12 @@ const underNav = (v: View, base: number) => base + Math.max(0, v.safeTop - NAV_T
  * ultra-wide monitors) the frame keeps her name clear of the navigation and
  * the labels in view, and as much of the chair as fits.
  *
- * Upright screens see the lamp's end of the room (the work laid out two by two
- * there for them: see sceneLayout's PORTRAIT), from the photograph's left edge
- * to past the telephone, a little wider as the screen gets squarer (tablets),
- * and never so close that her name and the desk's front edge do not both fit
- * under the navigation. The desk's front edge sits near the bottom of what is
- * surely visible, the wall above it.
+ * Upright screens see the lamp's end of the room (arranged for them: see
+ * sceneLayout's UPRIGHT_ARRANGEMENTS), from the photograph's left edge to the
+ * arrangement's `right` (a tablet's reaches further into the room), and never
+ * so close that her name and the desk's front edge do not both fit under the
+ * navigation. The desk's front edge sits near the bottom of what is surely
+ * visible, the wall above it.
  */
 export function workCamera(v: View): Camera {
   const shape = shapeOf(v);
@@ -111,16 +117,15 @@ export function workCamera(v: View): Camera {
     if (top > nameClear) top = Math.max(nameClear, LABELS_Y + 12 / k - visH);
     return clampCam(v, { k, cx: 820, cy: top + v.h / (2 * k) });
   }
-  const A = v.w / v.hs;
-  const range = lerp(PORTRAIT.right - PORTRAIT.left, 900, clamp((A - 0.55) / 0.2, 0, 1));
-  // From her name's top to the desk's front edge (at 0.92 of the height), under the navigation.
-  const letters = WALL_TEXT.upright;
-  const tall = (0.92 * v.hs - underNav(v, UNDER_NAV_UPRIGHT)) / (DESK_FRONT_Y - letters.top);
-  const k = Math.min(v.w / range, tall, PORTRAIT_MAX_K);
+  const room = uprightOf(v);
+  // From her name's top to the desk's front edge (at 0.92 of the height), under the navigation
+  // (in two rows below the navigation's `sm` width: the light's marks under the links).
+  const tall = (0.92 * v.hs - underNav(v, v.w >= 640 ? UNDER_NAV : UNDER_NAV_UPRIGHT)) / (DESK_FRONT_Y - room.name.top);
+  const k = Math.min(v.w / room.right, tall, PORTRAIT_MAX_K);
   // The frame starts at the photograph's left edge (the lamp): clampCam holds it there.
   // The desk's front edge a little above the bottom of what is surely visible,
   // leaving a strip of the chair's back below it.
-  return at(v, k, PORTRAIT.left + v.w / (2 * k), DESK_FRONT_Y, 0.92);
+  return at(v, k, v.w / (2 * k), DESK_FRONT_Y, 0.92);
 }
 
 /**
@@ -129,10 +134,9 @@ export function workCamera(v: View): Camera {
  * as the screen allows), so it stands in the middle of the screen at the desk
  * and in the intro.
  */
-export function wallText(v: View) {
+export function wallText(v: View): WallText {
   const shape = shapeOf(v);
-  const letters = WALL_TEXT[shape];
-  return shape === "upright" && v.w ? { ...letters, x: workCamera(v).cx } : letters;
+  return shape === "upright" ? { ...uprightOf(v).name, x: v.w ? workCamera(v).cx : 0 } : WALL_TEXT[shape];
 }
 
 /** The two framings, in state order. */
@@ -140,13 +144,18 @@ export function stateCameras(v: View): Camera[] {
   const work = workCamera(v);
   const shape = shapeOf(v);
   if (shape === "upright") {
+    const room = uprightOf(v);
     // The work's far edges: in the intro they stay just out of frame.
-    const objectsTop = Math.min(...Object.values(PORTRAIT.objects).flatMap((o) => o.quad.map(([, y]) => y)));
+    const objectsTop = Math.min(...Object.values(room.objects).flatMap((o) => o.quad.map(([, y]) => y)));
+    // The intro stands a little closer than the desk framing where it must (the page then draws back
+    // to the whole corner as it comes down): so that the wall above holds the frame down to the work,
+    // and her name, in its painted place, can sit under the cap.
+    const k = Math.max(work.k, v.hs / (objectsTop - 4 + WALL_ABOVE.height), uprightNameTop(v) / (room.name.top + WALL_ABOVE.height));
     // Up the wall: none of the work yet (the lamp's shade and its stem at the side)…
-    const low = at(v, work.k, work.cx, objectsTop - 4, 1);
+    const low = at(v, k, work.cx, objectsTop - 4, 1);
     // …and, on shorter screens, higher still: her name, in its painted place, just under the cap's
     // shadow (the intro holds the cap above her name; the name is only ever lifted into place).
-    const high = clampCam(v, { k: work.k, cx: work.cx, cy: WALL_TEXT.upright.top - (uprightNameTop(v) - v.h / 2) / work.k });
+    const high = clampCam(v, { k, cx: work.cx, cy: room.name.top - (uprightNameTop(v) - v.h / 2) / k });
     return [high.cy < low.cy ? high : low, work];
   }
   // Up the wall: the desk's back edge low in the frame (the work lies further forward, out of it).

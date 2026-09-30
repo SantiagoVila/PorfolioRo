@@ -51,7 +51,7 @@ function Call({ visit, world, callLight }: { visit: Visiting; world: World; call
 
   // The call's framing on this screen, and where the telephone stands in it.
   const cam = callCamera(view);
-  const box = phoneStageBox(upright);
+  const box = phoneStageBox(view.layout);
   const a = project(view, cam, box.x, box.y);
   const b = project(view, cam, box.x + box.w, box.y + box.h);
   const phone = { left: a.x, top: a.y, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };

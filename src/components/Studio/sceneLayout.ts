@@ -61,12 +61,13 @@ export function shapeOf(v: { w: number; hs: number; portrait: boolean }): Shape 
  * px). Behind the cap, which stands in front of its second line (as in the
  * intro). In the intro the name stands higher (up to `introLift`) and a little
  * larger (`introScale`), and settles into this painted place at work.
+ * (Upright screens: per arrangement, see UPRIGHT_ARRANGEMENTS; its x is the
+ * desk framing's own centre, per screen: see worldCamera's wallText.)
  */
-export const WALL_TEXT: Record<Shape, { x: number; top: number; size: number; introLift: number; introScale: number }> = {
+export type WallText = { x: number; top: number; size: number; introLift: number; introScale: number };
+export const WALL_TEXT: Record<Exclude<Shape, "upright">, WallText> = {
   landscape: { x: 836, top: 92, size: 180, introLift: 300, introScale: 1.1 },
   wide: { x: 836, top: 190, size: 150, introLift: 300, introScale: 1.1 },
-  // (Upright: x is the desk framing's own centre, per screen: see worldCamera's wallText.)
-  upright: { x: 370, top: -110, size: 134, introLift: 420, introScale: 1.03 },
 };
 
 /** Height of the two-line name block, in font sizes (both lines, their leading). */
@@ -161,7 +162,7 @@ type Placement = { id: string; kind: DeskObject["kind"]; label: string; width: n
  *
  * Landscape: a loose row across the front of the desk, clear of the chair,
  * each turned a little as things set down by hand are, EL DIARIO a little
- * further back. Upright: two by two at the lamp's end of the desk (see PORTRAIT).
+ * further back. (Upright screens: see UPRIGHT_ARRANGEMENTS.)
  */
 const LANDSCAPE: Placement[] = [
   { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 372, z: 772, w: 140, l: 187, turn: -4 }, thick: 6 },
@@ -169,12 +170,7 @@ const LANDSCAPE: Placement[] = [
   { id: "journalism", kind: "newspaper", label: "El Diario", width: 260, height: 325, at: { x: 964, z: 800, w: 162, l: 203, turn: -2 }, thick: 3 },
   { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 1272, z: 774, w: 140, l: 187, turn: 4 }, thick: 4 },
 ];
-const UPRIGHT: Placement[] = [
-  { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 222, z: 728, w: 136, l: 182, turn: 3 }, thick: 6 },
-  { id: "colorfull", kind: "book", label: "Colorfull", width: 240, height: 321, at: { x: 512, z: 720, w: 136, l: 182, turn: -3 }, thick: 4 },
-  { id: "journalism", kind: "newspaper", label: "El Diario", width: 260, height: 325, at: { x: 262, z: 968, w: 150, l: 188, turn: -3 }, thick: 3 },
-  { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 520, z: 958, w: 136, l: 182, turn: 4 }, thick: 4 },
-];
+
 
 const toObject = (p: Placement): DeskObject => {
   const quad = lying(p.at) as Quad;
@@ -184,37 +180,6 @@ const toObject = (p: Placement): DeskObject => {
 
 /** Left → right on landscape screens. */
 export const DESK_OBJECTS: DeskObject[] = LANDSCAPE.map(toObject);
-
-/**
- * Phones and tablets held upright: the same room, seen from its lamp's end.
- * An upright screen cannot hold the photograph's whole width, so it is framed
- * on the corner of the studio that reads as a place on its own: the chrome
- * lamp at the photograph's left edge (its stem, its shade, its base on the
- * desk; at night the light the whole desk is lit by), the pinned swatch and
- * the brass tray, the chair's back in front. The cap stands at the back of the
- * desk just right of the tray, the telephone at the right end of the frame
- * against the wall, and the work lies two by two in front of them (the pair
- * in front larger, nearer). Covers carry their own titles, so no labels.
- */
-export const PORTRAIT = {
-  /**
-   * Stage x range an upright screen always shows: from the photograph's left
-   * edge (the lamp) to just past the telephone's cord. Squarer screens
-   * (tablets) see a little more desk to the right.
-   */
-  left: 0,
-  right: 740,
-  objects: Object.fromEntries(UPRIGHT.map((p) => [p.id, toObject(p)])) as Record<string, DeskObject>,
-  /** The cap's bottom-centre on the desk (clear of the tray at its left), and its size (stage px per frame px). */
-  capAnchor: { x: 466, y: 548 },
-  capScale: 0.51,
-};
-
-/** A desk object as it lies on this layout. */
-export const objectFor = (o: DeskObject, upright: boolean): DeskObject => (upright ? PORTRAIT.objects[o.id] ?? o : o);
-
-/** The cap's size on the desk (stage px per frame px), per layout. */
-export const capScaleFor = (upright: boolean) => (upright ? PORTRAIT.capScale : CAP_REST.scale);
 
 /**
  * Rosario's telephone: a cream and brass rotary desk telephone standing on the
@@ -228,9 +193,8 @@ export const capScaleFor = (upright: boolean) => (upright ? PORTRAIT.capScale : 
  * size beside the publications and the cap, its right end by the window; placed
  * so that the foot of that image's wall (its y 440) falls on this wall's foot
  * (y 520), and the crease its shadow makes where wall meets desk with it.
- * `place` is where its foot (`foot`, the middle of its base's front) stands,
- * on landscape and on upright screens (there at the right end of the lamp's
- * corner the camera shows, beside the cap).
+ * `place` is where its foot (`foot`, the middle of its base's front) stands
+ * on landscape screens (upright screens: see UPRIGHT_ARRANGEMENTS).
  */
 export const PHONE = {
   src: { x: 1085, y: 245, w: 340, h: 255 },
@@ -247,15 +211,99 @@ export const PHONE = {
   outline: { x: 1104, y: 250, w: 318, h: 248 },
   scale: 0.725,
   place: { x: 1401, y: 556.25 },
-  scalePortrait: 0.48,
-  placePortrait: { x: 616, y: 544 },
   /** How much closer the camera comes when it is answered. */
   closer: 1.15,
 };
 
+/**
+ * Which arrangement of the desk a screen gets. Landscape screens (desktops,
+ * laptops, tablets and phones held sideways) get the approved row above.
+ * Upright screens cannot hold the photograph's whole width; they get the room
+ * seen from its lamp's end, arranged for them: a phone's ("upright") and, from
+ * TABLET_MIN_WIDTH, a tablet's ("tablet"), which shows more of the room.
+ */
+export type DeskLayout = "landscape" | "upright" | "tablet";
+export const TABLET_MIN_WIDTH = 600;
+export const deskLayoutFor = (w: number, h: number): DeskLayout => (w > 0 && w / h < 1 ? (w >= TABLET_MIN_WIDTH ? "tablet" : "upright") : "landscape");
+
+/**
+ * An upright screen's arrangement of the room. The frame starts at the
+ * photograph's left edge, so the chrome lamp stays in the room (its stem, its
+ * shade, its base on the desk; at night the light the whole desk is lit by),
+ * with the pinned swatch, the brass tray and the chair's back; `right` is the
+ * stage x the frame always reaches (a screen too short for it sees more).
+ * The cap, the telephone and the work are placed in the photograph's own
+ * coordinates, sized for the screen: on an upright screen the room is seen
+ * further off than on a desktop, and the things on the desk are set a little
+ * larger in it than they stand there, so they keep their presence. Covers
+ * carry their own titles, so no labels.
+ */
+export type Arrangement = {
+  right: number;
+  objects: Record<string, DeskObject>;
+  /** The cap's bottom-centre on the desk, and its size (stage px per frame px). */
+  cap: { anchor: { x: number; y: number }; scale: number };
+  /** Where the telephone's foot stands, and its size (see PHONE). */
+  phone: { place: { x: number; y: number }; scale: number };
+  name: Omit<WallText, "x">;
+};
+
+const arrangement = (a: Omit<Arrangement, "objects"> & { work: Placement[] }): Arrangement => {
+  const { work, ...rest } = a;
+  return { ...rest, objects: Object.fromEntries(work.map((p) => [p.id, toObject(p)])) };
+};
+/** Standing against the wall: the telephone's foot is where the foot of its image's wall meets this wall's (see PHONE). */
+const againstWall = (x: number, scale: number) => ({ place: { x, y: WALL_EDGE_Y + (PHONE.foot.y - PHONE.wallFoot) * scale }, scale });
+
+/**
+ * PHONE (upright): the cap stands at the back of the desk just behind the
+ * brass tray, beside the lamp (its light falls on it at night); the telephone
+ * stands well apart from it at the right end of the frame, against the wall.
+ * In front, the three books in a row across the desk, and the folded
+ * newspaper behind them at the right, clear of the tray.
+ *
+ * TABLET: more of the room, as far as the middle of the chair: the cap at the
+ * back past the tray, the telephone apart from it at the right against the
+ * wall, and the work in a row across the front of the desk, as on a desktop.
+ */
+export const UPRIGHT_ARRANGEMENTS: Record<Exclude<DeskLayout, "landscape">, Arrangement> = {
+  upright: arrangement({
+    right: 800,
+    cap: { anchor: { x: 348, y: 604 }, scale: 0.78 },
+    phone: againstWall(645, 0.7),
+    name: { top: -125, size: 156, introLift: 420, introScale: 0.92 },
+    work: [
+      { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 290, z: 706, w: 146, l: 164, turn: -4 }, thick: 6 },
+      { id: "colorfull", kind: "book", label: "Colorfull", width: 240, height: 321, at: { x: 620, z: 705, w: 146, l: 162, turn: 3 }, thick: 4 },
+      { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 206, z: 882, w: 118, l: 158, turn: -8 }, thick: 4 },
+      { id: "journalism", kind: "newspaper", label: "El Diario", width: 260, height: 325, at: { x: 632, z: 900, w: 146, l: 170, turn: -2 }, thick: 3 },
+    ],
+  }),
+  tablet: arrangement({
+    right: 1350,
+    cap: { anchor: { x: 648, y: 548 }, scale: 0.84 },
+    phone: againstWall(1070, 0.8),
+    name: { top: -152, size: 180, introLift: 420, introScale: 1.03 },
+    work: [
+      { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 250, z: 768, w: 140, l: 188, turn: -3 }, thick: 6 },
+      { id: "colorfull", kind: "book", label: "Colorfull", width: 240, height: 321, at: { x: 546, z: 768, w: 140, l: 188, turn: 2 }, thick: 4 },
+      { id: "journalism", kind: "newspaper", label: "El Diario", width: 260, height: 325, at: { x: 844, z: 790, w: 151, l: 189, turn: -2 }, thick: 3 },
+      { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 1140, z: 768, w: 140, l: 188, turn: 3 }, thick: 4 },
+    ],
+  }),
+};
+
+/** The arrangement of an upright layout (a landscape screen's is the row above). */
+export const arrangementFor = (layout: Exclude<DeskLayout, "landscape">) => UPRIGHT_ARRANGEMENTS[layout];
+
+/** A desk object as it lies on this layout. */
+export const objectFor = (o: DeskObject, layout: DeskLayout): DeskObject => (layout === "landscape" ? o : UPRIGHT_ARRANGEMENTS[layout].objects[o.id] ?? o);
+
+/** Where the cap rests on the desk (its bottom-centre) and its size (stage px per frame px), per layout. */
+export const capFor = (layout: DeskLayout) => (layout === "landscape" ? { anchor: CAP_REST.stageAnchor, scale: CAP_REST.scale } : UPRIGHT_ARRANGEMENTS[layout].cap);
+
 /** Stage position of a point of the telephone's source image, as it stands on this layout. */
-export function phoneAt(portrait: boolean, x: number, y: number) {
-  const s = portrait ? PHONE.scalePortrait : PHONE.scale;
-  const p = portrait ? PHONE.placePortrait : PHONE.place;
+export function phoneAt(layout: DeskLayout, x: number, y: number) {
+  const { place: p, scale: s } = layout === "landscape" ? PHONE : UPRIGHT_ARRANGEMENTS[layout].phone;
   return { x: p.x + (x - PHONE.foot.x) * s, y: p.y + (y - PHONE.foot.y) * s, s };
 }

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { motion, useTransform, type MotionValue } from "framer-motion";
 import { LIGHT_CHANGE_MS, type MoodLook } from "./mood";
 import { ringFrames, SCREEN_ON } from "./phoneRing";
-import { PHONE, phoneAt } from "./sceneLayout";
+import { PHONE, phoneAt, type DeskLayout } from "./sceneLayout";
 
 const SRC = "/studio/phone";
 
@@ -31,7 +31,7 @@ const SRC = "/studio/phone";
  * lies above the scene (see PhoneButton), after the cap in reading order.
  */
 export default function PhoneObject({
-  portrait,
+  layout,
   shown,
   lift,
   ringing,
@@ -39,7 +39,7 @@ export default function PhoneObject({
   reduced,
   look,
 }: {
-  portrait: boolean;
+  layout: DeskLayout;
   shown: MotionValue<number>;
   lift: MotionValue<number>;
   ringing: boolean;
@@ -47,11 +47,11 @@ export default function PhoneObject({
   reduced: boolean;
   look: MoodLook["phone"];
 }) {
-  const box = phoneAt(portrait, PHONE.src.x, PHONE.src.y);
+  const box = phoneAt(layout, PHONE.src.x, PHONE.src.y);
   const s = box.s;
   const w = PHONE.src.w * s;
   const h = PHONE.src.h * s;
-  const shadowAt = phoneAt(portrait, PHONE.shadow.x, PHONE.shadow.y);
+  const shadowAt = phoneAt(layout, PHONE.shadow.x, PHONE.shadow.y);
   // Its shadow falls to the left from the window (as drawn), or, at night, to the right from the lamp
   // (mirrored about its foot); changing light, one fades into the other.
   const footInShadow = (PHONE.foot.x - PHONE.shadow.x) * s;
@@ -126,7 +126,7 @@ export default function PhoneObject({
 }
 
 /** The telephone's outline on the stage (for placing its button over the scene). */
-export function phoneStageBox(portrait: boolean) {
-  const a = phoneAt(portrait, PHONE.outline.x, PHONE.outline.y);
+export function phoneStageBox(layout: DeskLayout) {
+  const a = phoneAt(layout, PHONE.outline.x, PHONE.outline.y);
   return { x: a.x, y: a.y, w: PHONE.outline.w * a.s, h: PHONE.outline.h * a.s };
 }

@@ -14,7 +14,7 @@ import { project } from "./worldCamera";
  */
 export default function PhoneButton({ world, visit, shown, onNear }: { world: World; visit: Visiting; shown: MotionValue<number>; onNear: (near: boolean) => void }) {
   const { view, camera, ready } = world;
-  const stage = phoneStageBox(view.portrait);
+  const stage = phoneStageBox(view.layout);
   const box = useTransform(camera, (c) => {
     const a = project(view, c, stage.x, stage.y);
     const b = project(view, c, stage.x + stage.w, stage.y + stage.h);

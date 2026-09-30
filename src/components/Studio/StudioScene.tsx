@@ -14,12 +14,11 @@ import {
   CAP_REST,
   CAP_SLOT,
   DESK_OBJECTS,
-  PORTRAIT,
   STAGE_HEIGHT,
   STAGE_WIDTH,
   WALL_ABOVE,
   WALL_EDGE_Y,
-  capScaleFor,
+  capFor,
   objectFor,
   type DeskObject,
 } from "./sceneLayout";
@@ -122,8 +121,8 @@ function Room({
   const revealed = useRevealed();
   const rise = 80;
 
-  const cap = portrait ? PORTRAIT.capAnchor : CAP_REST.stageAnchor;
-  const capK = capScaleFor(portrait) / CAP_REST.scale;
+  const { anchor: cap, scale: capScale } = capFor(view.layout);
+  const capK = capScale / CAP_REST.scale;
 
   return (
     <div className="absolute inset-0 overflow-hidden" style={{ background: look.room, overflow: "clip" }}>
@@ -176,12 +175,12 @@ function Room({
         />
 
         {/* Her telephone, by the window. */}
-        <PhoneObject portrait={portrait} shown={phoneShown} lift={phoneLift} ringing={phoneRinging} connected={phoneConnected} reduced={world.reduced} look={look.phone} />
+        <PhoneObject layout={view.layout} shown={phoneShown} lift={phoneLift} ringing={phoneRinging} connected={phoneConnected} reduced={world.reduced} look={look.phone} />
 
         {/* The work, lying on the desk */}
         <motion.div className="absolute inset-0" style={{ pointerEvents: deskActive }}>
           {DESK_OBJECTS.map((obj, i) => {
-            const lying = objectFor(obj, portrait);
+            const lying = objectFor(obj, view.layout);
             return (
               <DeskItem key={obj.id} object={lying} lifted={obj.id === liftedId}>
                 <DeskObjectView

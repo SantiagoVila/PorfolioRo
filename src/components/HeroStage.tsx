@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExter
 import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from "framer-motion";
 import { Fraunces } from "next/font/google";
 import CapViewer, { CAP_CANVAS_MAX_WIDTH } from "./CapViewer";
-import { CAP_CROWN_TOP, CAP_DESK_FROM, CAP_DESK_REST, CAP_REST, CAP_SHADOW_BAND, PORTRAIT, capScaleFor } from "./Studio/sceneLayout";
+import { CAP_CROWN_TOP, CAP_DESK_FROM, CAP_DESK_REST, CAP_REST, CAP_SHADOW_BAND, capFor } from "./Studio/sceneLayout";
 import { LOOK, type MoodLook } from "./Studio/mood";
 import { useLightChange, useMood } from "./Studio/useMood";
 import { onCap } from "./Studio/capTouch";
@@ -42,8 +42,7 @@ const mixPose = (a: Pose, b: Pose, t: number): Pose => ({ scale: a.scale * Math.
 function capOnDesk(view: View, c: Camera) {
   const { w: cw, h: ch } = view;
   const { frameWidth, frameHeight, frameAnchor } = CAP_REST;
-  const stagePxPerFramePx = capScaleFor(view.portrait);
-  const anchor = view.portrait ? PORTRAIT.capAnchor : CAP_REST.stageAnchor;
+  const { anchor, scale: stagePxPerFramePx } = capFor(view.layout);
   // Intro: the canvas is centred on screen, showing the whole frame at this size.
   const screenPxPerFramePx = Math.min(cw, CAP_CANVAS_MAX_WIDTH) / frameWidth;
   // The frame anchor (brim bottom, on the rotation axis) relative to screen centre.

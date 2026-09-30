@@ -73,7 +73,7 @@ export function callSpot(view: View) {
   return view.portrait ? { fx: 0.72, fy: 0.7 } : short ? { fx: 0.8, fy: 0.64 } : { fx: 0.76, fy: 0.7 };
 }
 const phoneAim = (view: View) => {
-  const d = phoneAt(view.portrait, PHONE.dial.x, PHONE.dial.y);
+  const d = phoneAt(view.layout, PHONE.dial.x, PHONE.dial.y);
   const k = workCamera(view).k * PHONE.closer;
   const { fx, fy } = callSpot(view);
   return { x: d.x - ((fx - 0.5) * view.w) / k, y: d.y - ((fy - 0.5) * view.h) / k, closer: PHONE.closer };
