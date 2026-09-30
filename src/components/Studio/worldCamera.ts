@@ -44,6 +44,8 @@ export interface View {
   portrait: boolean;
   /** The landscape Studio framing (useStageFit; the framings here are worldCamera's own). */
   fit: { scale: number; x: number; y: number };
+  /** The screen's safe-area inset at the top (a notch, a status bar over the page; 0 almost everywhere): the navigation moves down past it. */
+  safeTop: number;
 }
 
 /** Upright screens never enlarge the photograph beyond this. */
@@ -68,6 +70,11 @@ function clampCam(v: View, c: Camera): Camera {
 
 /** Below the navigation (screen px): where her painted name may start at the desk. */
 const UNDER_NAV = 64;
+/** The same on upright screens, whose navigation takes two rows (the light's marks under the links). */
+const UNDER_NAV_UPRIGHT = 112;
+/** The navigation's own top margin (SiteHeader: max(inset, 1.75rem)): how much of a top inset it already clears. */
+const NAV_TOP = 28;
+const underNav = (v: View, base: number) => base + Math.max(0, v.safeTop - NAV_TOP);
 
 /**
  * The desk framing, art-directed per shape of screen (one room: only the
@@ -84,9 +91,12 @@ const UNDER_NAV = 64;
  * ultra-wide monitors) the frame keeps her name clear of the navigation and
  * the labels in view, and as much of the chair as fits.
  *
- * Upright screens see a slice of the room around the work (laid out two by two
- * for them), wider as the screen gets squarer (tablets), its desk's front edge
- * near the bottom and the wall above.
+ * Upright screens see the lamp's end of the room (the work laid out two by two
+ * there for them: see sceneLayout's PORTRAIT), from the photograph's left edge
+ * to past the telephone, a little wider as the screen gets squarer (tablets),
+ * and never so close that her name and the desk's front edge do not both fit
+ * under the navigation. The desk's front edge sits near the bottom of what is
+ * surely visible, the wall above it.
  */
 export function workCamera(v: View): Camera {
   const shape = shapeOf(v);
@@ -97,16 +107,32 @@ export function workCamera(v: View): Camera {
     const visH = v.hs / k;
     const letters = WALL_TEXT[shape];
     let top = STAGE_HEIGHT - visH;
-    const nameClear = letters.top - UNDER_NAV / k;
+    const nameClear = letters.top - underNav(v, UNDER_NAV) / k;
     if (top > nameClear) top = Math.max(nameClear, LABELS_Y + 12 / k - visH);
     return clampCam(v, { k, cx: 820, cy: top + v.h / (2 * k) });
   }
   const A = v.w / v.hs;
-  const range = lerp(PORTRAIT.right - PORTRAIT.left, 1000, clamp((A - 0.5) / 0.25, 0, 1));
-  const k = Math.min(v.w / range, PORTRAIT_MAX_K);
+  const range = lerp(PORTRAIT.right - PORTRAIT.left, 900, clamp((A - 0.55) / 0.2, 0, 1));
+  // From her name's top to the desk's front edge (at 0.92 of the height), under the navigation.
+  const letters = WALL_TEXT.upright;
+  const tall = (0.92 * v.hs - underNav(v, UNDER_NAV_UPRIGHT)) / (DESK_FRONT_Y - letters.top);
+  const k = Math.min(v.w / range, tall, PORTRAIT_MAX_K);
+  // The frame starts at the photograph's left edge (the lamp): clampCam holds it there.
   // The desk's front edge a little above the bottom of what is surely visible,
   // leaving a strip of the chair's back below it.
-  return at(v, k, PORTRAIT.centreX, DESK_FRONT_Y, 0.92);
+  return at(v, k, PORTRAIT.left + v.w / (2 * k), DESK_FRONT_Y, 0.92);
+}
+
+/**
+ * Her name painted on the wall, as this screen shows it: on upright screens
+ * it is centred on the desk framing (which starts at the lamp and is as wide
+ * as the screen allows), so it stands in the middle of the screen at the desk
+ * and in the intro.
+ */
+export function wallText(v: View) {
+  const shape = shapeOf(v);
+  const letters = WALL_TEXT[shape];
+  return shape === "upright" && v.w ? { ...letters, x: workCamera(v).cx } : letters;
 }
 
 /** The two framings, in state order. */
@@ -116,8 +142,12 @@ export function stateCameras(v: View): Camera[] {
   if (shape === "upright") {
     // The work's far edges: in the intro they stay just out of frame.
     const objectsTop = Math.min(...Object.values(PORTRAIT.objects).flatMap((o) => o.quad.map(([, y]) => y)));
-    // Up the wall: none of the work yet.
-    return [at(v, work.k, work.cx, objectsTop - 4, 1), work];
+    // Up the wall: none of the work yet (the lamp's shade and its stem at the side)…
+    const low = at(v, work.k, work.cx, objectsTop - 4, 1);
+    // …and, on shorter screens, higher still: her name, in its painted place, just under the cap's
+    // shadow (the intro holds the cap above her name; the name is only ever lifted into place).
+    const high = clampCam(v, { k: work.k, cx: work.cx, cy: WALL_TEXT.upright.top - (uprightNameTop(v) - v.h / 2) / work.k });
+    return [high.cy < low.cy ? high : low, work];
   }
   // Up the wall: the desk's back edge low in the frame (the work lies further forward, out of it).
   return [at(v, work.k * 1.12, WALL_TEXT[shape].x, WALL_EDGE_Y, 0.9), work];
@@ -172,7 +202,7 @@ const CUE_ROOM = 100;
 const CAP_MAX = 0.46;
 
 export function introLayout(v: View, cams: Camera[]): Intro {
-  const letters = WALL_TEXT[shapeOf(v)];
+  const letters = wallText(v);
   const c = cams[0];
   const row = (y: number) => capIntroRow(v, y);
   if (!v.portrait) {
@@ -192,11 +222,19 @@ export function introLayout(v: View, cams: Camera[]): Intro {
     const caption = shadowBottom + 30 <= edge - 18 - 50;
     return { lift, scale, heroY, capScale, caption };
   }
-  const heroY = -0.1 * v.h;
-  const shadowBottom = v.h / 2 + heroY + row(CAP_SHADOW_BAND.bottom);
-  const nameTop = (shadowBottom + 10 - v.h / 2) / c.k + c.cy;
-  return { lift: Math.max(0, Math.min(letters.introLift, letters.top - nameTop)), scale: letters.introScale, heroY, capScale: 1, caption: true };
+  const nameTop = (uprightNameTop(v) - v.h / 2) / c.k + c.cy;
+  return { lift: Math.max(0, Math.min(letters.introLift, letters.top - nameTop)), scale: letters.introScale, heroY: uprightHeroY(v), capScale: 1, caption: true };
 }
+
+/**
+ * Upright intro: the cap's offset from the screen's centre. A tenth of the
+ * height up on a tall phone; a little more on shorter screens (a phone with
+ * its browser's bars showing, tablets), so the name, the swatch under it and
+ * the scroll cue keep clear of each other.
+ */
+const uprightHeroY = (v: View) => -lerp(0.1, 0.13, clamp((v.w / v.h - 0.47) / 0.12, 0, 1)) * v.h;
+/** Upright intro: where her name starts on screen, just under the cap's shadow. */
+const uprightNameTop = (v: View) => v.h / 2 + uprightHeroY(v) + capIntroRow(v, CAP_SHADOW_BAND.bottom) + 10;
 
 /** The camera at state progress s (0–1). */
 export function cameraAt(cams: Camera[], s: number): Camera {

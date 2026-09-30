@@ -64,8 +64,9 @@ export function shapeOf(v: { w: number; hs: number; portrait: boolean }): Shape 
  */
 export const WALL_TEXT: Record<Shape, { x: number; top: number; size: number; introLift: number; introScale: number }> = {
   landscape: { x: 836, top: 92, size: 180, introLift: 300, introScale: 1.1 },
-  wide: { x: 836, top: 176, size: 150, introLift: 300, introScale: 1.1 },
-  upright: { x: 737, top: 200, size: 118, introLift: 420, introScale: 1.03 },
+  wide: { x: 836, top: 190, size: 150, introLift: 300, introScale: 1.1 },
+  // (Upright: x is the desk framing's own centre, per screen: see worldCamera's wallText.)
+  upright: { x: 370, top: -110, size: 134, introLift: 420, introScale: 1.03 },
 };
 
 /** Height of the two-line name block, in font sizes (both lines, their leading). */
@@ -160,7 +161,7 @@ type Placement = { id: string; kind: DeskObject["kind"]; label: string; width: n
  *
  * Landscape: a loose row across the front of the desk, clear of the chair,
  * each turned a little as things set down by hand are, EL DIARIO a little
- * further back. Upright: two by two in the middle of the desk.
+ * further back. Upright: two by two at the lamp's end of the desk (see PORTRAIT).
  */
 const LANDSCAPE: Placement[] = [
   { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 372, z: 772, w: 140, l: 187, turn: -4 }, thick: 6 },
@@ -169,10 +170,10 @@ const LANDSCAPE: Placement[] = [
   { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 1272, z: 774, w: 140, l: 187, turn: 4 }, thick: 4 },
 ];
 const UPRIGHT: Placement[] = [
-  { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 596, z: 745, w: 130, l: 173, turn: 3 }, thick: 6 },
-  { id: "colorfull", kind: "book", label: "Colorfull", width: 240, height: 321, at: { x: 878, z: 734, w: 130, l: 173, turn: -3 }, thick: 4 },
-  { id: "journalism", kind: "newspaper", label: "El Diario", width: 260, height: 325, at: { x: 624, z: 1000, w: 150, l: 188, turn: -3 }, thick: 3 },
-  { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 852, z: 985, w: 130, l: 173, turn: 4 }, thick: 4 },
+  { id: "chacarita", kind: "book", label: "Chacarita", width: 240, height: 321, at: { x: 222, z: 728, w: 136, l: 182, turn: 3 }, thick: 6 },
+  { id: "colorfull", kind: "book", label: "Colorfull", width: 240, height: 321, at: { x: 512, z: 720, w: 136, l: 182, turn: -3 }, thick: 4 },
+  { id: "journalism", kind: "newspaper", label: "El Diario", width: 260, height: 325, at: { x: 262, z: 968, w: 150, l: 188, turn: -3 }, thick: 3 },
+  { id: "bw", kind: "book", label: "B&W", width: 240, height: 321, at: { x: 520, z: 958, w: 136, l: 182, turn: 4 }, thick: 4 },
 ];
 
 const toObject = (p: Placement): DeskObject => {
@@ -185,20 +186,27 @@ const toObject = (p: Placement): DeskObject => {
 export const DESK_OBJECTS: DeskObject[] = LANDSCAPE.map(toObject);
 
 /**
- * Phones and tablets held upright: the same room, the work two by two in the
- * middle of the desk (the pair in front larger, nearer), the cap behind them
- * against the wall and the telephone at the right, against the wall too.
- * Covers carry their own titles, so no labels.
+ * Phones and tablets held upright: the same room, seen from its lamp's end.
+ * An upright screen cannot hold the photograph's whole width, so it is framed
+ * on the corner of the studio that reads as a place on its own: the chrome
+ * lamp at the photograph's left edge (its stem, its shade, its base on the
+ * desk; at night the light the whole desk is lit by), the pinned swatch and
+ * the brass tray, the chair's back in front. The cap stands at the back of the
+ * desk just right of the tray, the telephone at the right end of the frame
+ * against the wall, and the work lies two by two in front of them (the pair
+ * in front larger, nearer). Covers carry their own titles, so no labels.
  */
 export const PORTRAIT = {
-  /** Stage x range the camera keeps on screen on a phone (the work and a margin of desk; wider on squarer screens). */
-  left: 403,
-  right: 1053,
-  /** Stage x at the centre of the range. */
-  centreX: 728,
+  /**
+   * Stage x range an upright screen always shows: from the photograph's left
+   * edge (the lamp) to just past the telephone's cord. Squarer screens
+   * (tablets) see a little more desk to the right.
+   */
+  left: 0,
+  right: 740,
   objects: Object.fromEntries(UPRIGHT.map((p) => [p.id, toObject(p)])) as Record<string, DeskObject>,
-  /** The cap's bottom-centre on the desk, and its size (stage px per frame px). */
-  capAnchor: { x: 737, y: 548 },
+  /** The cap's bottom-centre on the desk (clear of the tray at its left), and its size (stage px per frame px). */
+  capAnchor: { x: 466, y: 548 },
   capScale: 0.51,
 };
 
@@ -221,8 +229,8 @@ export const capScaleFor = (upright: boolean) => (upright ? PORTRAIT.capScale : 
  * so that the foot of that image's wall (its y 440) falls on this wall's foot
  * (y 520), and the crease its shadow makes where wall meets desk with it.
  * `place` is where its foot (`foot`, the middle of its base's front) stands,
- * on landscape and on upright screens (there at the right of the range the
- * camera shows).
+ * on landscape and on upright screens (there at the right end of the lamp's
+ * corner the camera shows, beside the cap).
  */
 export const PHONE = {
   src: { x: 1085, y: 245, w: 340, h: 255 },
@@ -239,8 +247,8 @@ export const PHONE = {
   outline: { x: 1104, y: 250, w: 318, h: 248 },
   scale: 0.725,
   place: { x: 1401, y: 556.25 },
-  scalePortrait: 0.52,
-  placePortrait: { x: 930, y: 546 },
+  scalePortrait: 0.48,
+  placePortrait: { x: 616, y: 544 },
   /** How much closer the camera comes when it is answered. */
   closer: 1.15,
 };

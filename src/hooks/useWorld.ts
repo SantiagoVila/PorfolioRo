@@ -2,6 +2,7 @@
 
 import { RefObject, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MotionValue, useMotionValue, useMotionValueEvent, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { safeInsets } from "@/components/safeArea";
 import { STAGE_FIT } from "@/components/Studio/sceneLayout";
 import { cameraAt, closeOn, introLayout, mixCam, stateCameras, type Camera, type Intro, type View } from "@/components/Studio/worldCamera";
 import { eased, fractionFor, stateAt, stateScrollY, STATES } from "@/components/Studio/worldStates";
@@ -67,7 +68,9 @@ export function useWorld(stickyRef: RefObject<HTMLElement | null>, svhRef: RefOb
   const view = useMemo<View>(() => {
     const w = fit.viewportWidth;
     const h = fit.viewportHeight;
-    return { w, h, hs: Math.min(h, hs || h), portrait: w > 0 && w / h < 1, fit: { scale: fit.scale, x: fit.x, y: fit.y } };
+    // (Read again whenever the screen changes size, as turning a phone does.)
+    const safeTop = w > 0 ? safeInsets().top : 0;
+    return { w, h, hs: Math.min(h, hs || h), portrait: w > 0 && w / h < 1, fit: { scale: fit.scale, x: fit.x, y: fit.y }, safeTop };
   }, [fit.viewportWidth, fit.viewportHeight, fit.scale, fit.x, fit.y, hs]);
   const cams = useMemo(() => (view.w ? stateCameras(view) : []), [view]);
   const intro = useMemo(() => (cams.length ? introLayout(view, cams) : { lift: 0, scale: 1, heroY: 0, capScale: 1, caption: false }), [view, cams]);

@@ -6,8 +6,9 @@ import { IBM_Plex_Mono, Reenie_Beanie } from "next/font/google";
 import { motion, useTransform, type MotionValue } from "framer-motion";
 import { ABOUT } from "@/data/profile";
 import { useFocusTrap } from "@/components/Projects/useFocusTrap";
+import { safeInsets } from "@/components/safeArea";
 import BackToDesk from "./BackToDesk";
-import { aboutLayout, MASTHEAD, PRINT_BORDER, UPRIGHT_TOP, type AboutLayout } from "./aboutLayout";
+import { aboutLayout, MASTHEAD, PRINT_BORDER, type AboutLayout } from "./aboutLayout";
 import type { Visiting } from "./useVisit";
 import { ABOUT_T, inOut, within } from "./visitTimeline";
 
@@ -41,13 +42,13 @@ const PAPER_QUIET = "rgba(241,235,225,0.74)";
  * when the cap is picked up), shown only while the visit is on.
  */
 export default function AboutVisit({ visit }: { visit: Visiting }) {
-  const [vp, setVp] = useState(() => ({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 }));
+  const [vp, setVp] = useState(() => ({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1, insets: safeInsets() }));
   useEffect(() => {
-    const on = () => setVp({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1 });
+    const on = () => setVp({ w: window.innerWidth, h: window.innerHeight, dpr: window.devicePixelRatio || 1, insets: safeInsets() });
     window.addEventListener("resize", on);
     return () => window.removeEventListener("resize", on);
   }, []);
-  return <Visit visit={visit} L={aboutLayout(vp.w, vp.h, vp.dpr)} />;
+  return <Visit visit={visit} L={aboutLayout(vp.w, vp.h, vp.dpr, vp.insets)} />;
 }
 
 function Visit({ visit, L }: { visit: Visiting; L: AboutLayout }) {
@@ -238,8 +239,8 @@ function Visit({ visit, L }: { visit: Visiting; L: AboutLayout }) {
 
       {upright && (
         <>
-          <Word t={t} at={words(0)} className="absolute" style={{ left: 22, top: UPRIGHT_TOP + (MASTHEAD - 26) / 2 }}>{masthead}</Word>
-          <div className="absolute flex flex-col gap-3" style={{ left: L.photo.x + L.photo.w + b.side + 16, top: L.photo.y - b.side, right: 22 }}>
+          <Word t={t} at={words(0)} className="absolute" style={{ left: L.frame.left, top: L.frame.top + (MASTHEAD - 26) / 2 }}>{masthead}</Word>
+          <div className="absolute flex flex-col gap-3" style={{ left: L.photo.x + L.photo.w + b.side + 16, top: L.photo.y - b.side, right: L.frame.right }}>
             <Word t={t} at={words(1)}>{name}</Word>
             <Word t={t} at={words(2)}>{competencies}</Word>
             <Word t={t} at={words(4)} className={`${small} mt-2`}>{palette}</Word>

@@ -37,7 +37,7 @@ export default function LightControl() {
   };
 
   return (
-    <div role="radiogroup" aria-label="Studio light" lang="en" className="flex items-center gap-[14px] md:gap-[18px]">
+    <div role="radiogroup" aria-label="Studio light" lang="en" className="flex items-center gap-[18px]">
       {OPTIONS.map((o, i) => {
         const on = current === o.choice;
         const auto = current === "auto" && o.choice === light?.mood;
@@ -55,11 +55,11 @@ export default function LightControl() {
             tabIndex={on ? 0 : -1}
             onClick={() => chooseLight(o.choice)}
             onKeyDown={(e) => onKey(e, i)}
-            className={`group relative py-1 leading-none outline-none transition-opacity duration-300 after:absolute after:-inset-x-[7px] after:-inset-y-4 after:content-[''] focus-visible:ring-2 focus-visible:ring-[rgb(var(--scene-ink)/0.6)] focus-visible:ring-offset-4 focus-visible:ring-offset-transparent ${on ? "opacity-100" : "opacity-60 hover:opacity-100"}`}
+            className={`group relative py-1 leading-none outline-none transition-opacity duration-300 after:absolute after:-inset-x-[9px] after:-inset-y-4 after:content-[''] focus-visible:ring-2 focus-visible:ring-[rgb(var(--scene-ink)/0.6)] focus-visible:ring-offset-4 focus-visible:ring-offset-transparent ${on ? "opacity-100" : "opacity-60 hover:opacity-100"}`}
           >
             <span
               aria-hidden
-              className={o.choice === "auto" ? "text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase pl-[0.3em]" : "block text-[11px] md:text-[12px]"}
+              className={o.choice === "auto" ? "text-[8px] min-[375px]:text-[9px] font-bold tracking-[0.3em] uppercase pl-[0.3em]" : "block text-[11px] min-[375px]:text-[12px]"}
               style={o.choice === "auto" ? undefined : { fontFamily: SYMBOLS }}
             >
               {o.glyph}

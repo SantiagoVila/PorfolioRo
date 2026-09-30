@@ -19,14 +19,12 @@ import {
   STAGE_WIDTH,
   WALL_ABOVE,
   WALL_EDGE_Y,
-  WALL_TEXT,
   capScaleFor,
   objectFor,
-  shapeOf,
   type DeskObject,
 } from "./sceneLayout";
 import { useLight, useLightChange } from "./useMood";
-import { cameraTransform, project } from "./worldCamera";
+import { cameraTransform, project, wallText } from "./worldCamera";
 import { useRevealed } from "../reveal";
 
 interface StudioSceneProps {
@@ -87,7 +85,7 @@ function Room({
   const portrait = view.portrait;
   const look = LOOK[mood];
   const transform = useTransform(camera, (c) => (view.w ? cameraTransform(view, c) : "none"));
-  const letters = WALL_TEXT[shapeOf(view)];
+  const letters = wallText(view);
   // The publication a pointer is over, or the keyboard is on: its name shows (see Labels).
   const [named, setNamed] = useState<string | null>(null);
 
@@ -133,7 +131,8 @@ function Room({
         className="absolute left-0 top-0 origin-top-left"
         style={{ width: STAGE_WIDTH, height: STAGE_HEIGHT, transform, visibility: ready && drawn ? "visible" : "hidden" }}
       >
-        {drawn && <Plates mood={mood} pending={pending} sizes={plateSizes} />}
+        {/* (Once the scene is measured: before that, `sizes` would ask for a file of the wrong width, fetched for nothing.) */}
+        {drawn && view.w > 0 && <Plates mood={mood} pending={pending} sizes={plateSizes} />}
 
         {/* Her name, painted on the wall (multiplied into it: the window's light and the leaves' shadows fall across it) */}
         <div className="absolute inset-x-0 overflow-hidden pointer-events-none select-none" style={{ top: -WALL_ABOVE.height, height: WALL_ABOVE.height + WALL_EDGE_Y }}>

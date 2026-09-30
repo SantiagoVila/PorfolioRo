@@ -1,4 +1,5 @@
 import { ABOUT } from "@/data/profile";
+import type { Insets } from "@/components/safeArea";
 import { CAP_REST } from "./sceneLayout";
 
 /**
@@ -34,6 +35,8 @@ type Rect = { x: number; y: number; w: number; h: number };
 
 export interface AboutLayout {
   upright: boolean;
+  /** Upright: the masthead's row (its top) and the side margins, clear of a phone's notch and rounded corners. */
+  frame: { top: number; left: number; right: number };
   /** A landscape screen with little height (a phone held sideways). */
   short: boolean;
   /** The photograph (the image itself, inside the print's border). */
@@ -46,9 +49,24 @@ export interface AboutLayout {
   text: { x: number; y: number; w: number };
 }
 
-export function aboutLayout(w: number, h: number, dpr: number): AboutLayout {
+const NO_INSETS: Insets = { top: 0, right: 0, bottom: 0, left: 0 };
+
+/**
+ * `insets`: the screen's safe-area insets (a phone's notch or Dynamic Island,
+ * its rounded corners, its home bar; 0 almost everywhere). The way back sits
+ * in the top corner clear of them (BackToDesk), so the composition starts that
+ * much lower, and keeps as clear of them at the sides and the foot.
+ */
+export function aboutLayout(w: number, h: number, dpr: number, insets: Insets = NO_INSETS): AboutLayout {
   const upright = w / h < 1;
   const short = !upright && h < 560;
+  // The way back is at max(inset, 24 px) from the top: whatever it moves down, the composition does too.
+  const drop = Math.max(0, insets.top - 24);
+  const frame = { top: UPRIGHT_TOP + drop, left: 22 + insets.left, right: 22 + insets.right };
+  const sideL = Math.max(24, w * 0.04, insets.left + 10);
+  const sideR = Math.max(24, w * 0.04, insets.right + 10);
+  const shortTop = SHORT_TOP + drop;
+  const shortBottom = Math.max(20, insets.bottom + 6);
   const canvas = Math.min(w, CANVAS_MAX);
   const perFrame = canvas / CAP_REST.frameWidth; // screen px per frame px, at the intro's size
   const src = ABOUT.portrait;
@@ -58,7 +76,7 @@ export function aboutLayout(w: number, h: number, dpr: number): AboutLayout {
   const byCap = (perFrame * src.width * CAP_EYES.apart) / PORTRAIT_EYES.apart;
   const byFile = (src.width * PORTRAIT_MAX_DEVICE_SCALE) / dpr;
   const b = PRINT_BORDER;
-  const byRoom = upright ? w * 0.42 : short ? (h - SHORT_TOP - 20 - b.side - b.bottom) * (src.width / src.height) : Math.min(w * 0.24, h * 0.42);
+  const byRoom = upright ? (w - insets.left - insets.right) * 0.42 : short ? (h - shortTop - shortBottom - b.side - b.bottom) * (src.width / src.height) : Math.min(w * 0.24, h * 0.42);
   const P = Math.floor(Math.min(byCap, byFile, byRoom));
   const H = Math.round((P * src.height) / src.width);
 
@@ -66,15 +84,15 @@ export function aboutLayout(w: number, h: number, dpr: number): AboutLayout {
   let text: AboutLayout["text"];
   if (upright) {
     // Her masthead across the top; under it the print at the left, her name beside it; her words below.
-    photo = { x: 22 + b.side, y: UPRIGHT_TOP + MASTHEAD + b.side, w: P, h: H };
-    text = { x: 22, y: photo.y + H + b.bottom + 12, w: w - 44 };
+    photo = { x: frame.left + b.side, y: frame.top + MASTHEAD + b.side, w: P, h: H };
+    text = { x: frame.left, y: photo.y + H + b.bottom + 12, w: w - frame.left - frame.right };
   } else if (short) {
     // A phone held sideways: the print at the left, as tall as the screen allows; the words in two columns beside it.
-    const top = Math.max(SHORT_TOP, Math.round((h - (H + b.side + b.bottom)) / 2));
-    photo = { x: Math.max(24, w * 0.04) + b.side, y: top + b.side, w: P, h: H };
+    const top = Math.max(shortTop, Math.round((h - (H + b.side + b.bottom)) / 2));
+    photo = { x: sideL + b.side, y: top + b.side, w: P, h: H };
     const x = photo.x + P + b.side + 28;
     // Clear of the way back in the corner above.
-    text = { x, y: SHORT_TOP + 8, w: w - x - Math.max(24, w * 0.04) };
+    text = { x, y: shortTop + 8, w: w - x - sideR };
   } else {
     // The print and the words side by side, the pair centred.
     const gap = Math.max(40, w * 0.045);
@@ -102,5 +120,5 @@ export function aboutLayout(w: number, h: number, dpr: number): AboutLayout {
   const ph = H + b.side + b.bottom;
   const face = { top: tl.y, left: tl.x, right: pw - br.x, bottom: ph - br.y };
 
-  return { upright, short, photo, cap, face, text };
+  return { upright, frame, short, photo, cap, face, text };
 }

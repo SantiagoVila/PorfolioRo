@@ -16,6 +16,14 @@ html, body {
   font-family: var(--font-sans);
 }
 
+/* Past the page's edges (a phone's rubber-band overscroll, the bars' tint)
+   the canvas shows: the room's own tone there, per light, not white paper
+   (at night, a flash of white above a dark room). The page itself keeps its
+   paper (body). */
+html {
+  background: var(--room-edge);
+}
+
 /* The studio's light (see components/Studio/mood.ts). <html data-mood> is set
    before the first paint (the visitor's choice, or the clock): day, sunset
    (golden hour) or night. It sets the ink of the words laid over the room (an
@@ -25,6 +33,7 @@ html, body {
    sunset; the lamp's, at the left, at night). Offsets are in the desk's plane
    (the publications' own px). Changing the light, they move with it. */
 :root {
+  --room-edge: #d9cfc4;
   --scene-ink: 25 21 16;
   --cast-rgb: 52 34 18;
   --desk-cast-x: -7px;
@@ -34,6 +43,7 @@ html, body {
   --contact-o: 0.5;
 }
 :root[data-mood="sunset"] {
+  --room-edge: #b9763b;
   --cast-rgb: 74 26 0;
   --desk-cast-x: -12px;
   --desk-cast-y: 3px;
@@ -42,6 +52,7 @@ html, body {
   --contact-o: 0.55;
 }
 :root[data-mood="night"] {
+  --room-edge: #2c2a33;
   --scene-ink: 244 237 228;
   --cast-rgb: 8 7 14;
   --desk-cast-x: 9px;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { animate, motion, useMotionValue, useMotionValueEvent, useTransform } from "framer-motion";
 import { Fraunces } from "next/font/google";
 import CapViewer, { CAP_CANVAS_MAX_WIDTH } from "./CapViewer";
@@ -9,7 +9,8 @@ import { LOOK, type MoodLook } from "./Studio/mood";
 import { useLightChange, useMood } from "./Studio/useMood";
 import { onCap } from "./Studio/capTouch";
 import { capIntroRow, project, type Camera, type View } from "./Studio/worldCamera";
-import { aboutLayout } from "./Studio/aboutLayout";
+import { aboutLayout, type AboutLayout } from "./Studio/aboutLayout";
+import { safeInsets } from "./safeArea";
 import { ABOUT_T, out, pickUp, within } from "./Studio/visitTimeline";
 import type { Visiting } from "./Studio/useVisit";
 import { useRevealed } from "./reveal";
@@ -90,7 +91,21 @@ export default function HeroStage({ world, visit }: { world: World; visit: Visit
   const about = visit.about;
   const held = visit.current === "about";
   // Where it is held for About (per screen; the pixel density sets how large her portrait may be drawn).
-  const layout = useMemo(() => (view.w && typeof window !== "undefined" ? aboutLayout(view.w, view.h, window.devicePixelRatio || 1) : null), [view]);
+  // Laid out as the About visit lays itself out: on the visible screen (window.innerHeight, which a
+  // phone's browser bars shorten), whose centre lies (innerHeight − view.h) / 2 from this layer's.
+  const heldAt = useRef<{ key: string; layout: AboutLayout } | null>(null);
+  const aboutAt = (): AboutLayout | null => {
+    if (!view.w || typeof window === "undefined") return null;
+    const ih = window.innerHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const insets = safeInsets();
+    const key = [view.w, view.h, ih, dpr, insets.top, insets.right, insets.bottom, insets.left].join();
+    if (heldAt.current?.key !== key) {
+      const l = aboutLayout(view.w, ih, dpr, insets);
+      heldAt.current = { key, layout: { ...l, cap: { ...l.cap, y: l.cap.y + (ih - view.h) / 2 } } };
+    }
+    return heldAt.current.layout;
+  };
   // Hovered on the desk: it rises a little off it (spring), and faces the viewer.
   const [hovered, setHovered] = useState(false);
   const rise = useMotionValue(0);
@@ -128,6 +143,7 @@ export default function HeroStage({ world, visit }: { world: World; visit: Visit
     if (!ready) return { scale: 1, x: 0, y: 0 };
     const base = scrolled();
     const a = about.get();
+    const layout = a > 0 ? aboutAt() : null;
     if (a <= 0 || !layout) return base;
     // Picked up: from wherever it is to held up facing the viewer (reduced motion: it stays, and fades).
     if (world.reduced) return base;

@@ -69,7 +69,7 @@ export default function SiteHeader({ world, visit, opacity, inert }: { world: Wo
       </button>
       <div className="flex flex-col items-end gap-[18px] sm:flex-row sm:items-center sm:gap-7">
       <nav aria-label="Portfolio" lang="en" className="pointer-events-auto">
-        <ul className="flex gap-4 md:gap-8 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase">
+        <ul className="flex gap-4 md:gap-8 text-[8px] min-[375px]:text-[9px] font-bold tracking-[0.3em] uppercase">
           {NAV.map((n) => {
             const on = current === n.to;
             return (

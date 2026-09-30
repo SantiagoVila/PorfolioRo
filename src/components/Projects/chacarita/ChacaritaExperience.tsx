@@ -435,6 +435,7 @@ function Title({ ctx }: { ctx: Ctx }) {
   const opacity = useTransform(q, ramp([0, 0.03, 0.06], [1, 1, 0]));
   const visibility = useTransform(opacity, (o) => (o > 0.01 ? "visible" : "hidden"));
   const size = Math.round(Math.max(44, Math.min(box.h * (g.upright ? 0.1 : 0.15), (box.w - 32) / (TEXT.title.length * 0.47), 150)));
+  const short = !g.upright && box.h < 560;
   const letters = TEXT.title.toUpperCase().split("");
   return (
     <motion.div className="absolute inset-0 pointer-events-none" style={{ opacity, visibility, color: CREAM }}>
@@ -461,9 +462,14 @@ function Title({ ctx }: { ctx: Ctx }) {
       >
         {TEXT.subtitle}
       </motion.p>
-      <div aria-hidden className="absolute flex flex-col items-center gap-3 text-[10px] font-medium uppercase tracking-[0.24em]" style={{ right: g.upright ? 16 : g.title.x, bottom: g.upright ? 24 : box.h * 0.07 }}>
+      {/* (On a phone held sideways, a shorter cue, low in the corner: clear of the window above it and of the home bar.) */}
+      <div
+        aria-hidden
+        className={`absolute flex flex-col items-center ${short ? "gap-2" : "gap-3"} text-[10px] font-medium uppercase tracking-[0.24em]`}
+        style={{ right: g.upright ? 16 : g.title.x, bottom: g.upright ? 24 : short ? "max(14px, env(safe-area-inset-bottom))" : box.h * 0.07 }}
+      >
         <span>Scroll</span>
-        <span className="relative block w-px h-10 overflow-hidden bg-white/40">
+        <span className={`relative block w-px ${short ? "h-7" : "h-10"} overflow-hidden bg-white/40`}>
           {!reduced && <span className="absolute inset-x-0 top-0 h-4 bg-current animate-[chacaritaCue_2.2s_cubic-bezier(0.45,0,0.55,1)_infinite]" />}
         </span>
       </div>

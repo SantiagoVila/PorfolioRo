@@ -8,9 +8,9 @@
  * whenever AUTO is chosen again, then kept (the light does not change under
  * someone reading the page).
  *
- *   day      07:30 – 17:29   the window's light: sun and the leaves' shadows
- *   sunset   17:30 – 20:29   golden hour (and the early morning, 06:00 – 07:29)
- *   night    20:30 – 05:59   the lamp on, the city in the window
+ *   day      07:00 – 17:29   the window's light: sun and the leaves' shadows
+ *   sunset   17:30 – 20:29   golden hour (evening only)
+ *   night    20:30 – 06:59   the lamp on, the city in the window
  *
  * A chosen light is kept in localStorage (LIGHT_KEY) and holds on every page
  * load until AUTO is chosen again. `?luz=dia|atardecer|noche` (or
@@ -32,8 +32,7 @@ export const MOODS: Mood[] = ["day", "sunset", "night"];
 export const LIGHT_KEY = "rm-studio-light";
 
 /** Minutes after midnight where each light begins. */
-const DAWN = 6 * 60;
-const DAY = 7 * 60 + 30;
+const DAY = 7 * 60;
 const SUNSET = 17 * 60 + 30;
 const NIGHT = 20 * 60 + 30;
 
@@ -43,7 +42,7 @@ const isMood = (v: unknown): v is Mood => v === "day" || v === "sunset" || v ===
 /** The light for a time of day (minutes after midnight). */
 export function moodAt(minutes: number): Mood {
   if (minutes >= DAY && minutes < SUNSET) return "day";
-  if ((minutes >= SUNSET && minutes < NIGHT) || (minutes >= DAWN && minutes < DAY)) return "sunset";
+  if (minutes >= SUNSET && minutes < NIGHT) return "sunset";
   return "night";
 }
 
@@ -58,7 +57,7 @@ export const clockMood = () => {
  * else the kept choice, else the clock (as moodAt). Marks where it came from
  * (data-mood-from: url, chosen or auto) for the light control.
  */
-export const MOOD_SCRIPT = `(function(){try{var h=document.documentElement,a=${JSON.stringify(ALIASES)},q=new URLSearchParams(location.search),m=a[(q.get("luz")||q.get("mood")||"").toLowerCase()],f="url";if(!m){f="chosen";try{var s=localStorage.getItem("${LIGHT_KEY}");if(s==="day"||s==="sunset"||s==="night")m=s}catch(e){}}if(!m){f="auto";var d=new Date(),t=d.getHours()*60+d.getMinutes();m=t>=${DAY}&&t<${SUNSET}?"day":(t>=${SUNSET}&&t<${NIGHT})||(t>=${DAWN}&&t<${DAY})?"sunset":"night"}h.setAttribute("data-mood",m);h.setAttribute("data-mood-from",f)}catch(e){}})()`;
+export const MOOD_SCRIPT = `(function(){try{var h=document.documentElement,a=${JSON.stringify(ALIASES)},q=new URLSearchParams(location.search),m=a[(q.get("luz")||q.get("mood")||"").toLowerCase()],f="url";if(!m){f="chosen";try{var s=localStorage.getItem("${LIGHT_KEY}");if(s==="day"||s==="sunset"||s==="night")m=s}catch(e){}}if(!m){f="auto";var d=new Date(),t=d.getHours()*60+d.getMinutes();m=t>=${DAY}&&t<${SUNSET}?"day":t>=${SUNSET}&&t<${NIGHT}?"sunset":"night"}h.setAttribute("data-mood",m);h.setAttribute("data-mood-from",f)}catch(e){}})()`;
 
 /* ─────────────── the visit's light, as a small store (client only) ─────────────── */
 

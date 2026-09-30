@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "re
 import { motion, useTransform, type MotionValue } from "framer-motion";
 import { ABOUT, CONTACT } from "@/data/profile";
 import { useFocusTrap } from "@/components/Projects/useFocusTrap";
+import { safeInsets } from "@/components/safeArea";
 import type { World } from "@/hooks/useWorld";
 import BackToDesk from "./BackToDesk";
 import { phoneStageBox } from "./PhoneObject";
@@ -55,13 +56,16 @@ function Call({ visit, world, callLight }: { visit: Visiting; world: World; call
   const b = project(view, cam, box.x + box.w, box.y + box.h);
   const phone = { left: a.x, top: a.y, cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2 };
 
-  // The card's place: beside the telephone, left of it (landscape), or above it (upright).
+  // The card's place: beside the telephone, left of it (landscape), or above it (upright); clear of a
+  // phone's notch and rounded corners, and of the way back in the corner above (it moves down with them).
+  const insets = safeInsets();
+  const drop = Math.max(0, insets.top - 24);
   const pad = upright ? 18 : Math.max(24, view.w * 0.05);
   const room = upright
-    ? { left: pad, right: view.w - pad, top: 76, bottom: Math.max(300, phone.top - 18) }
-    : { left: pad, right: phone.left - (short ? 26 : 44), top: short ? 58 : 76, bottom: view.hs - (short ? 14 : 28) };
+    ? { left: pad + insets.left, right: view.w - pad - insets.right, top: 76 + drop, bottom: Math.max(300, phone.top - 18) }
+    : { left: Math.max(pad, insets.left + 10), right: phone.left - (short ? 26 : 44), top: (short ? 58 : 76) + drop, bottom: view.hs - Math.max(short ? 14 : 28, insets.bottom + 6) };
   const width = Math.max(260, Math.min(upright ? 440 : 540, room.right - room.left));
-  const left = upright ? (view.w - width) / 2 : Math.max(room.left, room.right - width);
+  const left = upright ? (room.left + room.right - width) / 2 : Math.max(room.left, room.right - width);
   const compact = short || width < 380;
   const nameSize = Math.round(Math.min(compact ? 34 : 46, width / (compact ? 10.5 : 11.5)));
   const valueSize = compact ? 17 : Math.round(Math.min(22, width / 24));

@@ -1,7 +1,5 @@
 import { getImageProps } from "next/image";
 
-/** `sizes` of the cover while held up to the viewer (transition body). */
-export const HELD_COVER_SIZES = "80vh";
 /**
  * `sizes` of the cover when it fills the screen: the transition's fill and each
  * book's opening cover, so they are one and the same image (cached and decoded
@@ -9,6 +7,14 @@ export const HELD_COVER_SIZES = "80vh";
  * that it fills by height (75vh wide), otherwise by width.
  */
 export const FILL_COVER_SIZES = "(max-aspect-ratio: 240/321) 75vh, 100vw";
+/**
+ * `sizes` of the cover while held up to the viewer (transition body): the same
+ * image as the fill. Held, it is never wider than it is when it fills the
+ * screen, and the fill's file is fetched for the hand-off anyway; a size of its
+ * own only fetched and decoded a second, near-identical file of each cover (on
+ * a phone, 2048 px beside the fill's 1920 px).
+ */
+export const HELD_COVER_SIZES = FILL_COVER_SIZES;
 
 const warmed = new Set<string>();
 
@@ -20,7 +26,7 @@ const warmed = new Set<string>();
  */
 export function warmCovers(srcs: string[]) {
   for (const src of srcs) {
-    for (const sizes of [HELD_COVER_SIZES, FILL_COVER_SIZES]) {
+    for (const sizes of new Set([HELD_COVER_SIZES, FILL_COVER_SIZES])) {
       const key = `${src}|${sizes}`;
       if (warmed.has(key)) continue;
       warmed.add(key);
