@@ -7,9 +7,9 @@ export type ProjectData = {
   id: string;
   /** Name of the project dialog (its accessible name). */
   title: string;
-  /** Shown on THE DAILY's front page ear; part of the desk objects' accessible names. */
+  /** Shown on EL DIARIO's front page ear; part of the desk objects' accessible names. */
   category: string;
-  /** Book cover on the desk, also the first frame when the book opens. THE DAILY is a newspaper and has none. */
+  /** Book cover on the desk, also the first frame when the book opens. EL DIARIO is a newspaper and has none. */
   coverImage?: string;
   /** The project's own language where it isn't the page's (Spanish): its words, captions and descriptions. */
   lang?: "en";
@@ -42,8 +42,8 @@ export const PROJECTS: Record<string, ProjectData> = {
   },
   journalism: {
     id: "journalism",
-    title: "The Daily",
-    // THE DAILY's section line (its masthead ear).
-    category: "Articles & Reports",
+    title: "El Diario",
+    // EL DIARIO's section line (its masthead ear).
+    category: "Investigación y tendencias",
   },
 };

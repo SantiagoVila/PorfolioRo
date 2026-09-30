@@ -1,27 +1,27 @@
 /**
- * The portfolio's one continuous scene and its four states, in page scroll.
+ * The portfolio's one continuous scene and its two states, in page scroll.
  *
- * The page scrolls through the studio: Rosario's name and the cap (INTRO),
- * the desk and its projects (WORK), her own material on the wall (ABOUT), and
- * a card to reach her (CONTACT). `s` runs 0 → 3 through them; each state
- * holds for a stretch of scroll (so it can be read or used) and the
- * transitions between them get shorter and quieter towards the end.
+ * The page scrolls from Rosario's name and the cap (INTRO) down to the desk
+ * (WORK), and ends there: the desk is where everything else is reached, from
+ * its objects. The books open her projects, the cap opens Rosario herself and
+ * the phone the way to reach her (see useVisit). `s` runs 0 → 1; each state
+ * holds for a stretch of scroll.
  *
  * Positions are in screens of scroll (window heights).
  */
 
-export const STATES = ["intro", "work", "about", "contact"] as const;
+export const STATES = ["intro", "work"] as const;
 
-/** Scroll (in screens) where each hold starts and ends, and where the transitions run. */
-const STOPS = [0, 0.15, 1.3, 1.9, 2.7, 3.25, 3.7, 3.9];
-const VALUES = [0, 0, 1, 1, 2, 2, 3, 3];
+/** Scroll (in screens) where each hold starts and ends, and where the transition runs. */
+const STOPS = [0, 0.15, 1.3, 1.6];
+const VALUES = [0, 0, 1, 1];
 /** Total scroll range, in screens; the page is one screen taller than this. */
 export const SCROLL_SCREENS = STOPS[STOPS.length - 1];
 
-/** Where each state is read or used: the middle of its hold (the intro at the very top, contact at the end). */
-const HOME = [0, (STOPS[2] + STOPS[3]) / 2, (STOPS[4] + STOPS[5]) / 2, SCROLL_SCREENS];
+/** Where each state is seen: the intro at the very top, the desk at the end. */
+const HOME = [0, SCROLL_SCREENS];
 
-/** State progress `s` (0–3) for a fraction of the page's scroll range (0–1). */
+/** State progress `s` (0–1) for a fraction of the page's scroll range (0–1). */
 export function stateAt(fraction: number) {
   const x = Math.min(1, Math.max(0, fraction)) * SCROLL_SCREENS;
   for (let i = 1; i < STOPS.length; i++) {
@@ -32,7 +32,7 @@ export function stateAt(fraction: number) {
       return VALUES[i - 1] + (VALUES[i] - VALUES[i - 1]) * k;
     }
   }
-  return 3;
+  return VALUES[VALUES.length - 1];
 }
 
 /** Fraction of the scroll range for a state progress `s`: a whole state goes to its home, a fraction into its transition. */

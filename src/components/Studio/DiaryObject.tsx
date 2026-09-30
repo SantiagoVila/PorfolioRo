@@ -3,7 +3,11 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
 import { motion, MotionValue } from "framer-motion";
+import { DeskShadows, LIFT, LIFT_SPRING } from "./BookObject";
 import { Corners } from "./Corners";
+import PrintLight from "./PrintLight";
+import { edgeLocal } from "./deskLight";
+import type { DeskObject } from "./sceneLayout";
 import { ISSUE, ORDER, STORIES, type Story } from "@/components/Projects/daily/dailyContent";
 import { DailyMark, narrow, serif } from "@/components/Projects/daily/identity";
 
@@ -13,8 +17,8 @@ type Fade = number | MotionValue<number>;
 interface DiaryObjectProps {
   title: string;
   category: string;
-  rotation?: number;
-  className?: string;
+  /** Where and how it lies (its face and thickness on this layout). */
+  object: DeskObject;
   delay?: number;
   /** Receives the newspaper's element, so a transition can start from its exact position. */
   onClick?: (el: HTMLElement) => void;
@@ -61,32 +65,28 @@ function PrintedPhoto({ story, colour = false, className, sizes }: { story: Stor
 }
 
 /**
- * THE DAILY: a folded newspaper on the desk. The entry point to the editorial
- * archive (several stories), deliberately not a book. It fills its parent:
- * size and perspective come from the scene placement (see StudioScene). Its
- * parts are exported so the opening transition can lift the very same paper.
+ * EL DIARIO: a folded newspaper lying on the desk, by the magazines. The entry
+ * point to the editorial archive (several stories), deliberately not a book,
+ * but on the desk by the same physical logic as the magazines (see BookObject):
+ * laid on the desk by its parent's transform, its shadows on the desk, its
+ * thickness at its foot (a few folded sheets, seen edge on), the desk's light
+ * over it. Nothing behind it: the paper is the object. Its parts are exported
+ * so the opening transition can lift the very same paper.
  */
-export default function DiaryObject({
-  title,
-  category,
-  rotation = 0,
-  className = "",
-  delay = 0,
-  onClick
-}: DiaryObjectProps) {
-
+export default function DiaryObject({ title, category, object, delay = 0, onClick }: DiaryObjectProps) {
+  const edge = edgeLocal(object);
   return (
     <motion.div
       role="button"
       tabIndex={0}
-      lang="en"
+      lang="es"
       aria-label={`${title} — ${category}`}
-      className={`relative w-full h-full cursor-pointer group outline-none ${className}`}
-      initial={{ opacity: 0, y: 30, rotateZ: rotation }}
-      animate={{ opacity: 1, y: 0, rotateZ: rotation }}
+      className="relative w-full h-full cursor-pointer group outline-none"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ delay, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -5, scale: 1.02 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover="lift"
+      whileTap="press"
       onClick={(e) => onClick?.(e.currentTarget)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -95,33 +95,33 @@ export default function DiaryObject({
         }
       }}
     >
-      <NewspaperShadows />
-      <NewspaperSheets />
-      <NewspaperFront title={title} category={category} />
-      <Corners />
+      <NewspaperShadows edge={edge} />
+      <motion.div className="absolute inset-0" variants={LIFT} initial="rest" transition={LIFT_SPRING}>
+        <NewspaperEdge edge={edge} />
+        <NewspaperFront title={title} category={category} />
+        <PrintLight object={object} />
+        <Corners />
+      </motion.div>
 
-      {/* Keyboard focus ring */}
-      <div className="absolute -inset-1 ring-2 ring-[#191510]/70 opacity-0 group-focus-visible:opacity-100 pointer-events-none z-20" />
+      {/* Keyboard focus ring (in the desk's plane, around the paper and its edge) */}
+      <div className="absolute -inset-2 ring-2 ring-[rgb(var(--scene-ink)/0.75)] opacity-0 group-focus-visible:opacity-100 pointer-events-none z-20" style={{ bottom: -edge - 8 }} />
     </motion.div>
   );
 }
 
-/** Soft cast shadow + thin contact line: paper lies flatter than a book. */
-export function NewspaperShadows({ opacity = 1 }: { opacity?: Fade }) {
-  return (
-    <motion.div className="absolute inset-0 -z-10" style={{ opacity }}>
-      <div className="absolute inset-0 bg-black/30 blur-md -translate-x-1 translate-y-2 transition-all duration-500 group-hover:blur-lg group-hover:translate-y-5 group-hover:bg-black/20" />
-      <div className="absolute inset-0 bg-black/35 blur-[2px] -translate-x-[2px] translate-y-[7px] transition-all duration-500 group-hover:opacity-40" />
-    </motion.div>
-  );
+/** Its shadows on the desk: the same as every publication's (see BookObject's DeskShadows). */
+export function NewspaperShadows({ opacity = 1, edge }: { opacity?: Fade; edge: number }) {
+  return <DeskShadows opacity={opacity} edge={edge} />;
 }
 
-/** Loose sheets underneath, slightly out of register. */
-export function NewspaperSheets({ opacity = 1 }: { opacity?: Fade }) {
+/** Its thickness at its foot: the folded sheets' edges, newsprint on newsprint. */
+export function NewspaperEdge({ opacity = 1, edge }: { opacity?: Fade; edge: number }) {
   return (
-    <motion.div className="absolute inset-0" style={{ opacity }}>
-      <div className="absolute inset-0 border-[0.5px] border-black/15 rotate-[1.6deg] translate-x-[5px] translate-y-[3px] transition-transform duration-500 group-hover:rotate-[2.4deg]" style={{ backgroundColor: "#ddd5c3" }} />
-      <div className="absolute inset-0 border-[0.5px] border-black/15 -rotate-[1deg] -translate-x-[3px] translate-y-[5px] transition-transform duration-500 group-hover:-rotate-[1.6deg]" style={{ backgroundColor: "#e1dac9" }} />
+    <motion.div className="absolute inset-x-0 top-full pointer-events-none" style={{ height: edge, opacity }}>
+      <div
+        className="absolute inset-0"
+        style={{ background: `repeating-linear-gradient(to bottom, ${NEWSPRINT} 0 30%, #cfc6b3 30% 36%, #ddd5c3 36% 64%, #c9c0ad 64% 70%, #e0d8c7 70% 100%)` }}
+      />
     </motion.div>
   );
 }
@@ -151,14 +151,14 @@ export function NewspaperFront({ title, category, grade = 1, ink = 1, paper = NE
         {/* Ear */}
         <div className={`${narrow.className} flex justify-between text-[4.6px] uppercase tracking-[0.2em] font-semibold opacity-80`}>
           <span>{ISSUE.volume} — {category}</span>
-          <span>{ISSUE.years}</span>
+          <span>{ISSUE.city}, {ISSUE.years}</span>
         </div>
         <div className="mt-[2.5px] h-[1.6px]" style={{ background: INK }} />
 
         {/* Masthead, with its flanks: the same lockup as the open front page */}
         <div className="grid grid-cols-[1fr_auto_1fr] items-center pt-[3px] pb-[4px]">
           <span className={`${narrow.className} text-[4.2px] leading-[1.25] uppercase tracking-[0.18em] font-semibold opacity-80`}>
-            {ISSUE.section.split(" & ").map((w, i) => <span key={w} className="block">{i ? `& ${w}` : w}</span>)}
+            {ISSUE.sectionLines.map((w) => <span key={w} className="block">{w}</span>)}
           </span>
           <div className="leading-none"><DailyMark size={52} label={title} /></div>
           <span className={`${narrow.className} text-[4.2px] leading-[1.25] uppercase tracking-[0.18em] font-semibold opacity-80 text-right`}>
@@ -212,18 +212,10 @@ export function NewspaperFront({ title, category, grade = 1, ink = 1, paper = NE
       {/* Newsprint grain belongs to the paper, so blank paper keeps it */}
       <div className="absolute inset-0 opacity-[0.22] mix-blend-multiply pointer-events-none" style={{ backgroundImage: PAPER_NOISE }} />
 
-      {/* Room light and falloff (same light as the books). Blend modes sit on the
-          fading wrappers so they stay correct while the paper leaves the desk. */}
-      <motion.div className="absolute inset-0 pointer-events-none mix-blend-multiply" style={{ opacity: grade }}>
-        <div className="absolute inset-0 bg-[#a58a70] opacity-[0.28]" />
-      </motion.div>
-      <motion.div className="absolute inset-0 pointer-events-none mix-blend-multiply" style={{ opacity: grade }}>
-        <div className="absolute inset-0 bg-[linear-gradient(215deg,transparent_25%,rgba(60,40,20,0.24)_100%)]" />
-      </motion.div>
+      {/* (The desk's light over it: see PrintLight.) */}
       <motion.div className="absolute inset-0 pointer-events-none" style={{ opacity: grade }}>
-        {/* Aged, handled edges and yellowing */}
-        <div className="absolute inset-0 shadow-[inset_0_0_18px_rgba(110,80,40,0.28)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_30%_90%,rgba(150,120,70,0.14),transparent_65%)]" />
+        {/* Handled edges */}
+        <div className="absolute inset-0 shadow-[inset_0_0_12px_rgba(90,70,40,0.16)]" />
       </motion.div>
     </motion.div>
   );

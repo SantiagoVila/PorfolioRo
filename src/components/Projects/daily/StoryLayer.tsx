@@ -58,7 +58,7 @@ const FLIGHT = { duration: 0.8, ease: [0.7, 0, 0.18, 1] as const };
  * A story opening out of the newspaper: its photograph grows from its place
  * on the page into the story's own first composition, then the story takes
  * over; leaving reverses it. Sits above the shell's desk button and carries
- * its own way back to THE DAILY.
+ * its own way back to EL DIARIO.
  */
 export default function StoryLayer({ id, phase, from, box, reduced, onLanded, onReturned, onBack, sizes }: Props) {
   const { Story, hero, tone } = WORLDS[id];
@@ -131,9 +131,9 @@ export default function StoryLayer({ id, phase, from, box, reduced, onLanded, on
           onClick={onBack}
           className={`${narrow.className} absolute top-[max(env(safe-area-inset-top),1.5rem)] right-6 sm:top-[max(env(safe-area-inset-top),2rem)] sm:right-8 z-10 flex items-center gap-3 px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.22em] outline-none focus-visible:ring-2`}
           style={{ color: tone.ink, background: tone.paper }}
-          lang="en" aria-label="Back to The Daily"
+          aria-label="Volver a la portada"
         >
-          <span aria-hidden>←</span> The Daily
+          <span aria-hidden>←</span> El Diario
         </button>
       </motion.div>
       <motion.div aria-hidden className="absolute left-0 top-0 overflow-hidden pointer-events-none" style={{ x, y, width: w, height: h, visibility: flyerVisibility }}>

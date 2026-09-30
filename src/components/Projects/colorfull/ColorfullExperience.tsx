@@ -112,17 +112,68 @@ function bounds(cx: number, cy: number, r: ArrayLike<number>): Bounds {
   return { x0, y0, x1, y1 };
 }
 
-/** A photograph covering a window, its focal point as central as the window allows. */
-function coverFit(b: Bounds, p: Photo): Rect {
+/** The window's radius at angle `a` (radians), between its samples. */
+function radiusAt(r: readonly number[], a: number) {
+  const t = ((a < 0 ? a + 2 * Math.PI : a) / (2 * Math.PI)) * N;
+  const i = Math.floor(t) % N;
+  const f = t - Math.floor(t);
+  return r[i] * (1 - f) + r[(i + 1) % N] * f;
+}
+
+/**
+ * A photograph in a window (a window's shape at unit scale, centred on 0, 0):
+ * it covers the window (every point of the shape), at the least size that
+ * does, and is slid, within the room that leaves, to where its key points
+ * (faces most) sit deepest inside the soft edge: a point counts fully once it
+ * is clear of the edge by a sixth of the radius there. Among equally good
+ * places, the one nearest its focal point centred. (Placing the photograph by
+ * the window's bounding box instead cut faces off at the amoeba's edges.)
+ */
+function fitIn(r: readonly number[], p: Photo): Rect {
+  const b = bounds(0, 0, r);
   const bw = b.x1 - b.x0, bh = b.y1 - b.y0;
   const w = Math.max(bw, bh * p.aspect) * 1.04;
   const h = w / p.aspect;
-  return {
-    x: clamp((b.x0 + b.x1) / 2 - p.focal[0] * w, b.x1 - w, b.x0),
-    y: clamp((b.y0 + b.y1) / 2 - p.focal[1] * h, b.y1 - h, b.y0),
-    w,
-  };
+  const xr: Span = [b.x1 - w, b.x0], yr: Span = [b.y1 - h, b.y0];
+  const fx = clamp((b.x0 + b.x1) / 2 - p.focal[0] * w, xr[0], xr[1]);
+  const fy = clamp((b.y0 + b.y1) / 2 - p.focal[1] * h, yr[0], yr[1]);
+  const G = 40;
+  let best = { x: fx, y: fy, s: -1, d: Infinity };
+  for (let i = 0; i <= G; i++) {
+    for (let j = 0; j <= G; j++) {
+      const x = lerp(xr[0], xr[1], i / G), y = lerp(yr[0], yr[1], j / G);
+      let s = 0;
+      for (const [kx, ky, kw] of p.keys) {
+        const px = x + kx * w, py = y + ky * h;
+        const R = radiusAt(r, Math.atan2(py, px));
+        s += kw * clamp((R - Math.hypot(px, py)) / (R / 6), 0, 1);
+      }
+      const d = Math.hypot(x - fx, y - fy);
+      if (s > best.s + 1e-6 || (s > best.s - 1e-6 && d < best.d)) best = { x, y, s, d };
+    }
+  }
+  return { x: best.x, y: best.y, w };
 }
+
+/** Each photograph's place in each window shape it is shown in (unit scale; see fitIn). */
+const FIT = {
+  redFace: { face: fitIn(FACE_R, PHOTOS.redFace), duo: fitIn(DUO_R, PHOTOS.redFace) },
+  redFigure: { face: fitIn(FACE_R, PHOTOS.redFigure), duo: fitIn(DUO_R, PHOTOS.redFigure) },
+  blueLegs: { face: fitIn(DUO_MIRROR_R, PHOTOS.blueLegs), duo: fitIn(DUO_R, PHOTOS.blueLegs) },
+  blueLying: { face: fitIn(DUO_MIRROR_R, PHOTOS.blueLying), duo: fitIn(DUO_R, PHOTOS.blueLying) },
+  together: fitIn(DUO_R, PHOTOS.together),
+  backToBack: fitIn(DUO_R, PHOTOS.backToBack),
+};
+type Fit = { face: Rect; duo: Rect };
+/**
+ * A photograph's place in a window part of the way (`t`) from its first shape
+ * to the shared one, at centre (x, y) and scale k. Mixing two covering places
+ * covers the mixed shape too (each edge point moves between two covered points).
+ */
+const fitAt = (f: Fit | Rect, x: number, y: number, k: number, t = 0): Rect => {
+  const r = "face" in f ? lerpRect(f.face, f.duo, t) : f;
+  return { x: x + r.x * k, y: y + r.y * k, w: r.w * k };
+};
 
 /**
  * The window's living edge: a slow breath, and the membrane reaching toward
@@ -242,12 +293,11 @@ function makeLayout(box: Box): Layout {
  * up), so no more pixels are loaded, decoded and rasterised than are seen.
  */
 function photoBaseFor(red: Spot, blue: Spot, both: Spot, kFill: number) {
-  const within = (s: Spot, r: readonly number[]) => bounds(s.x, s.y, r.map((v) => v * s.k));
   const widths = [
     IN_COVER.face.w * kFill, IN_COVER.duo.w * kFill, IN_COVER.blue.w * kFill,
-    coverFit(within(red, FACE_R), PHOTOS.redFace).w, coverFit(within(red, FACE_R), PHOTOS.redFigure).w,
-    coverFit(within(blue, DUO_MIRROR_R), PHOTOS.blueLegs).w, coverFit(within(blue, DUO_MIRROR_R), PHOTOS.blueLying).w,
-    coverFit(within(both, DUO_R), PHOTOS.together).w, coverFit(within(both, DUO_R), PHOTOS.backToBack).w,
+    FIT.redFace.face.w * red.k, FIT.redFigure.face.w * red.k, FIT.redFace.duo.w * both.k, FIT.redFigure.duo.w * both.k,
+    FIT.blueLegs.face.w * blue.k, FIT.blueLying.face.w * blue.k, FIT.blueLegs.duo.w * both.k, FIT.blueLying.duo.w * both.k,
+    FIT.together.w * both.k, FIT.backToBack.w * both.k,
   ];
   return Math.round(Math.min(3200, Math.max(...widths) * 1.04));
 }
@@ -325,7 +375,9 @@ function render(E: Els, L: Layout, P: number, t: number, alive: number, ptr: Poi
   const redC = { x: lerp(faceAt.x, redAct.x, W), y: lerp(faceAt.y, redAct.y, W) };
   const qRed = 1 - SQUEEZE_DEPTH * bump(P, T.swapRed, SQUEEZE);
   for (let i = 0; i < N; i++) rRed[i] = lerp(FACE_R[i] * k, lerp(FACE_R[i], DUO_R[i], c) * redAct.k, W);
-  const redBox = bounds(redC.x, redC.y, rRed);
+  // The red window's pose, as a shape part of the way to the shared one at one scale (for its photographs).
+  const redK = lerp(k, redAct.k, W);
+  const redT = redK > 0 ? (c * redAct.k * W) / redK : 0;
   let redPath = "";
   if (!merged) {
     for (let i = 0; i < N; i++) rRed[i] *= qRed;
@@ -339,7 +391,6 @@ function render(E: Els, L: Layout, P: number, t: number, alive: number, ptr: Poi
   const blueC = { x: lerp(seed.x, blueAct.x, W), y: lerp(seed.y, blueAct.y, W) };
   const qBlue = 1 - SQUEEZE_DEPTH * bump(P, T.swapBlue, SQUEEZE);
   for (let i = 0; i < N; i++) rBlue[i] = lerp(0, lerp(DUO_MIRROR_R[i], DUO_R[i], c) * blueAct.k, W);
-  const blueActBox = bounds(blueAct.x, blueAct.y, Array.from(DUO_MIRROR_R, (v, i) => lerp(v, DUO_R[i], c) * blueAct.k));
   let blueMean = 0;
   for (let i = 0; i < N; i++) blueMean += (rBlue[i] *= qBlue) / N;
   let bluePath = "";
@@ -350,7 +401,6 @@ function render(E: Els, L: Layout, P: number, t: number, alive: number, ptr: Poi
 
   // ── the shared window: the cover's centre window; the red∩blue overlap; one window
   const duoAt = onCover(DUO_BLOB.cx, DUO_BLOB.cy);
-  const bothBox = bounds(L2.x, L2.y, DUO_R.map((v) => v * L2.k));
   const lens = P >= 0.5 && !merged && P < T.land[0];
   let duoPath = "";
   let duoVisible: boolean;
@@ -399,15 +449,15 @@ function render(E: Els, L: Layout, P: number, t: number, alive: number, ptr: Poi
   const coverFade = 1 - ramp(W, [0.3, 0.6]);
   const base = L.photoBase;
   const redFirst = P < 0.75 ? before(P, T.swapRed) : 1;
-  const faceRect = lerpRect(inCover(IN_COVER.face), coverFit(redBox, PHOTOS.redFace), W);
+  const faceRect = lerpRect(inCover(IN_COVER.face), fitAt(FIT.redFace, redC.x, redC.y, redK, redT), W);
   place(E.redCover, coverAround(faceRect, IN_COVER.face), L.coverBase, coverFade);
   place(E.redFace, faceRect, base, show0 * redFirst);
-  place(E.redFigure, coverFit(redBox, PHOTOS.redFigure), base, W * (1 - redFirst));
+  place(E.redFigure, fitAt(FIT.redFigure, redC.x, redC.y, redK, redT), base, W * (1 - redFirst));
 
   const blueFirst = P < 0.75 ? before(P, T.swapBlue) : 1;
-  const legsRect = lerpRect(inCover(IN_COVER.blue), coverFit(blueActBox, PHOTOS.blueLegs), W);
+  const legsRect = lerpRect(inCover(IN_COVER.blue), fitAt(FIT.blueLegs, blueAct.x, blueAct.y, blueAct.k, c), W);
   place(E.blueLegs, legsRect, base, ramp(W, [0, 0.15]) * blueFirst);
-  place(E.blueLying, coverFit(blueActBox, PHOTOS.blueLying), base, W * (1 - blueFirst));
+  place(E.blueLying, fitAt(FIT.blueLying, blueAct.x, blueAct.y, blueAct.k, c), base, W * (1 - blueFirst));
   // The printed cut-out figure travels with its photograph until the window has opened around it.
   const s = legsRect.w / IN_COVER.blue.w;
   const cut = SPRITES.cutout;
@@ -418,10 +468,10 @@ function render(E: Els, L: Layout, P: number, t: number, alive: number, ptr: Poi
     1 - ramp(W, [0.12, 0.4]),
   );
 
-  const duoRect = P < 0.5 ? inCover(IN_COVER.duo) : lerpRect(inCover(IN_COVER.duo), coverFit(bothBox, PHOTOS.backToBack), W);
+  const duoRect = P < 0.5 ? inCover(IN_COVER.duo) : lerpRect(inCover(IN_COVER.duo), fitAt(FIT.backToBack, L2.x, L2.y, L2.k), W);
   place(E.duoCover, coverAround(duoRect, IN_COVER.duo), L.coverBase, coverFade);
   const togetherOn = P >= 0.5 ? before(P, T.swapDuo) : 0;
-  place(E.together, coverFit(bothBox, PHOTOS.together), base, togetherOn);
+  place(E.together, fitAt(FIT.together, L2.x, L2.y, L2.k), base, togetherOn);
   place(E.backToBack, duoRect, base, show0 * (P < 0.5 ? 1 : 1 - togetherOn));
 
   // The cover's words: on the cover, then at the edges of the page.

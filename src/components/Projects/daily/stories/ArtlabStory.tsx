@@ -158,8 +158,8 @@ export default function ArtlabStory({ box, heroRef, onBack, heroSizes }: StoryPr
           <a href={story.pdf.href} target="_blank" rel="noopener" className="border-b pb-1 outline-none focus-visible:ring-2" style={{ borderColor: RED }}>
             {story.pdf.label} ↗
           </a>
-          <button onClick={onBack} lang="en" aria-label="Back to The Daily" className="border-b pb-1 uppercase tracking-[0.18em] outline-none focus-visible:ring-2" style={{ borderColor: RED }}>
-            ← The Daily
+          <button onClick={onBack} aria-label="Volver a la portada" className="border-b pb-1 uppercase tracking-[0.18em] outline-none focus-visible:ring-2" style={{ borderColor: RED }}>
+            ← El Diario
           </button>
         </div>
       </footer>

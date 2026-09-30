@@ -17,7 +17,7 @@ function tabbable(root: HTMLElement) {
  * Keeps Tab and Shift+Tab inside `ref` while `active` (a modal dialog): past
  * the last control focus wraps to the first and back, instead of leaving for
  * the page behind or the browser's own controls. Whatever is inert inside the
- * dialog (THE DAILY's front page under an open story) is skipped.
+ * dialog (EL DIARIO's front page under an open story) is skipped.
  */
 export function useFocusTrap(ref: RefObject<HTMLElement | null>, active: boolean) {
   useEffect(() => {

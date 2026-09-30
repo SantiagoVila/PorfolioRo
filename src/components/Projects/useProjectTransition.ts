@@ -58,7 +58,7 @@ export interface ProjectTransition {
   cloneReady: () => void;
 }
 
-/** Exported so an experience with nested states (THE DAILY's stories) can extend the same entries. */
+/** Exported so an experience with nested states (EL DIARIO's stories) can extend the same entries. */
 export const URL_PARAM = "project";
 export const HISTORY_KEY = "rmProject";
 

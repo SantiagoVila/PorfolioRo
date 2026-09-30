@@ -1,9 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { motion, MotionValue } from "framer-motion";
+import { motion, MotionValue, type Variants } from "framer-motion";
 import Image from "next/image";
 import { Corners } from "./Corners";
+import PrintLight from "./PrintLight";
+import { edgeLocal } from "./deskLight";
+import type { DeskObject } from "./sceneLayout";
 
 /** Opacity for a layer: fixed, or driven by a transition. */
 type Fade = number | MotionValue<number>;
@@ -12,8 +15,8 @@ interface BookObjectProps {
   title: string;
   category: string;
   coverImage: string;
-  rotation?: number;
-  className?: string;
+  /** Where and how it lies (its face and thickness on this layout). */
+  object: DeskObject;
   delay?: number;
   /** Receives the book's element, so a transition can start from its exact position. */
   onClick?: (el: HTMLElement) => void;
@@ -28,32 +31,36 @@ const COVER_NOISE = `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns=
 export const DESK_COVER_SIZES = "(max-width: 540px) 40vw, (max-width: 768px) 30vw, 22vw";
 
 /**
- * A hardcover book lying on the desk. It fills its parent: size and
- * perspective come from the scene placement (see StudioScene). Its parts are
- * exported so the opening transition can lift the very same object.
+ * Picked up a little: it rises off the desk (in its own plane, towards the
+ * back: on screen, up), leaving its shadows on the desk. A finger's press is
+ * shallower.
  */
-export default function BookObject({
-  title,
-  category,
-  coverImage,
-  rotation = 0,
-  className = "",
-  delay = 0,
-  onClick
-}: BookObjectProps) {
+export const LIFT: Variants = { rest: { y: 0 }, lift: { y: -14 }, press: { y: -6 } };
+export const LIFT_SPRING = { type: "spring", duration: 0.45, bounce: 0.15 } as const;
 
+/**
+ * A magazine lying on the desk. It fills its parent, whose transform lays it
+ * on the desk (its face's corners projected through the photographs' camera:
+ * see StudioScene and deskPlane), so everything here is drawn in the desk's
+ * plane: its shadows on the desk, the page block at its foot (its thickness,
+ * which the low camera sees edge on), the cover, the desk's own light over
+ * both. The same logic for every publication on the desk (see DiaryObject).
+ * Its parts are exported so the opening transition can lift the very same object.
+ */
+export default function BookObject({ title, category, coverImage, object, delay = 0, onClick }: BookObjectProps) {
+  const edge = edgeLocal(object);
   return (
     <motion.div
       role="button"
       tabIndex={0}
       lang="en"
       aria-label={`${title} — ${category}`}
-      className={`relative w-full h-full cursor-pointer group outline-none ${className}`}
-      initial={{ opacity: 0, y: 30, rotateZ: rotation }}
-      animate={{ opacity: 1, y: 0, rotateZ: rotation }}
+      className="relative w-full h-full cursor-pointer group outline-none"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{ delay, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      whileHover={{ y: -6, scale: 1.025 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover="lift"
+      whileTap="press"
       onClick={(e) => onClick?.(e.currentTarget)}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -62,37 +69,61 @@ export default function BookObject({
         }
       }}
     >
-      <BookShadows />
-      <BookThickness />
-      <BookCover title={title} coverImage={coverImage} />
-      <Corners />
+      <BookShadows edge={edge} />
+      <motion.div className="absolute inset-0" variants={LIFT} initial="rest" transition={LIFT_SPRING}>
+        <BookThickness edge={edge} />
+        <BookCover title={title} coverImage={coverImage} />
+        <PrintLight object={object} />
+        <Corners />
+      </motion.div>
 
-      {/* Keyboard focus ring */}
-      <div className="absolute -inset-1 rounded-[3px] ring-2 ring-[#191510]/70 opacity-0 group-focus-visible:opacity-100 pointer-events-none" />
+      {/* Keyboard focus ring (in the desk's plane, around the publication and its edge) */}
+      <div
+        className="absolute -inset-2 rounded-[3px] ring-2 ring-[rgb(var(--scene-ink)/0.75)] opacity-0 group-focus-visible:opacity-100 pointer-events-none"
+        style={{ bottom: -edge - 8 }}
+      />
     </motion.div>
   );
 }
 
-/** Cast + contact shadow on the desk. */
-export function BookShadows({ opacity = 1 }: { opacity?: Fade }) {
+/**
+ * Its shadows on the desk, in the room's light (see globals.css, per
+ * <html data-mood>): where it touches the desk, darkest along its foot, and the
+ * short shadow its thickness casts away from the light (the window's, by day
+ * and at sunset; the lamp's, at night). As it lifts they loosen.
+ */
+export function BookShadows({ opacity = 1, edge }: { opacity?: Fade; edge: number }) {
+  return <DeskShadows opacity={opacity} edge={edge} />;
+}
+
+/** The shadows of anything lying on the desk (the same for every publication). */
+export function DeskShadows({ opacity = 1, edge }: { opacity?: Fade; edge: number }) {
   return (
-    <motion.div className="absolute inset-0 -z-10" style={{ opacity }}>
-      {/* Cast shadow: the plate is lit from the upper right, so it falls left and down */}
-      <div className="absolute inset-0 bg-black/45 blur-lg -translate-x-2 translate-y-3 transition-all duration-500 group-hover:blur-xl group-hover:translate-y-7 group-hover:bg-black/30" />
-      {/* Contact shadow: tight and dark right where the front edge meets the desk; loosens as it lifts */}
-      <div className="absolute inset-0 bg-black/55 blur-[3px] -translate-x-[3px] translate-y-[21px] rounded-[2px] transition-all duration-500 group-hover:opacity-40 group-hover:blur-[6px]" />
+    <motion.div className="absolute inset-0 -z-10 pointer-events-none" style={{ opacity }}>
+      <div className="absolute desk-cast transition-[opacity,filter] duration-500 group-hover:opacity-50" style={{ inset: 0, bottom: -edge }} />
+      <div className="absolute desk-contact transition-opacity duration-500 group-hover:opacity-40" style={{ left: -3, right: -3, top: -2, bottom: -edge - 2 }} />
+      <div className="absolute desk-foot transition-opacity duration-500 group-hover:opacity-30" style={{ left: 2, right: 2, height: 14, bottom: -edge - 9 }} />
     </motion.div>
   );
 }
 
-/** Back board and page block, peeking out along the bottom/right edge. */
-export function BookThickness({ opacity = 1 }: { opacity?: Fade }) {
+/**
+ * Its thickness, at its foot: the cover's board, the block of pages, the back
+ * cover (seen edge on by the low camera: a strip of the desk's plane below the
+ * face, as tall on screen as the thickness is).
+ */
+export function BookThickness({ opacity = 1, edge }: { opacity?: Fade; edge: number }) {
   return (
-    <motion.div className="absolute inset-0 -z-10" style={{ opacity }}>
-      <div className="absolute inset-0 bg-[#23201c] translate-x-[3px] translate-y-[17px] rounded-[2px]" />
-      <div className="absolute inset-0 bg-[#d9d1c1] translate-x-[2px] translate-y-[13px]" />
-      <div className="absolute inset-0 bg-[#ebe5d8] translate-x-[2px] translate-y-[8px]" />
-      <div className="absolute inset-0 bg-[#23201c] translate-x-[1px] translate-y-[3px] rounded-[2px]" />
+    <motion.div className="absolute inset-x-0 top-full pointer-events-none" style={{ height: edge, opacity }}>
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "linear-gradient(to bottom, rgba(40,32,24,0.55) 0, rgba(40,32,24,0.55) 12%, #f1ebdf 12%, #e6dfd1 40%, #efe9dc 55%, #ddd5c6 82%, rgba(40,32,24,0.6) 82%, rgba(40,32,24,0.6) 100%)",
+        }}
+      />
+      {/* The pages' fine lines */}
+      <div className="absolute inset-x-0 top-[14%] bottom-[20%] opacity-40" style={{ background: "repeating-linear-gradient(to bottom, transparent 0 1.5px, rgba(80,64,48,0.35) 1.5px 2px)" }} />
     </motion.div>
   );
 }
@@ -106,11 +137,11 @@ interface BookCoverProps {
   hiResSizes?: string;
 }
 
-/** The real project cover, printed on board, lit by the room. */
+/** The real project cover, printed on board. (The desk's light over it: see PrintLight.) */
 export function BookCover({ title, coverImage, grade = 1, hiResSizes }: BookCoverProps) {
   const [hiResLoaded, setHiResLoaded] = useState(false);
   return (
-    <div className="absolute inset-0 bg-[#23201c] overflow-hidden rounded-[2px]">
+    <div className="absolute inset-0 bg-[#23201c] overflow-hidden rounded-[1.5px]">
       <Image
         src={coverImage}
         alt={`${title} cover`}
@@ -133,27 +164,16 @@ export function BookCover({ title, coverImage, grade = 1, hiResSizes }: BookCove
           onLoad={() => setHiResLoaded(true)}
         />
       )}
-      {/* Room light. The blend mode sits on each fading wrapper, so the layers
-          still multiply correctly while a lifted book leaves the light behind. */}
-      {/* Room light: pull the print into the plate's warm, dim grade */}
-      <motion.div className="absolute inset-0 pointer-events-none mix-blend-multiply" style={{ opacity: grade }}>
-        <div className="absolute inset-0 bg-[#a58a70] opacity-[0.34]" />
-      </motion.div>
-      {/* Light falloff: brighter towards the window (upper right), darker towards the lower left */}
-      <motion.div className="absolute inset-0 pointer-events-none mix-blend-multiply" style={{ opacity: grade }}>
-        <div className="absolute inset-0 bg-[linear-gradient(215deg,transparent_25%,rgba(60,40,20,0.28)_100%)]" />
-      </motion.div>
+      {/* Its paper: a fine grain, and a soft sheen where the light catches the coated cover */}
+      <div className="absolute inset-0 opacity-[0.14] mix-blend-overlay pointer-events-none" style={{ backgroundImage: COVER_NOISE }} />
       <motion.div className="absolute inset-0 pointer-events-none mix-blend-soft-light" style={{ opacity: grade }}>
-        <div className="absolute inset-0 bg-[linear-gradient(215deg,rgba(255,244,225,0.35)_0%,transparent_45%)] transition-opacity duration-500 group-hover:opacity-70" />
+        <div className="absolute inset-0 bg-[linear-gradient(200deg,rgba(255,250,240,0.3)_0%,transparent_45%)] transition-opacity duration-500 group-hover:opacity-100 opacity-70" />
       </motion.div>
-      {/* Print texture and a little age, so it reads as an object, not a screen */}
-      <div className="absolute inset-0 opacity-[0.18] mix-blend-overlay pointer-events-none" style={{ backgroundImage: COVER_NOISE }} />
-      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_at_70%_20%,rgba(255,250,240,0.12),transparent_60%)]" />
-      {/* Spine hinge */}
-      <div className="absolute inset-y-0 left-[4%] w-[3px] bg-black/15 pointer-events-none" />
-      <div className="absolute inset-y-0 left-0 w-[6%] bg-gradient-to-r from-black/25 to-transparent pointer-events-none" />
-      {/* Worn board edges */}
-      <div className="absolute inset-0 rounded-[2px] pointer-events-none shadow-[inset_0_0_0_1px_rgba(0,0,0,0.25),inset_0_0_14px_rgba(40,25,10,0.28)]" />
+      {/* Spine */}
+      <div className="absolute inset-y-0 left-[3.5%] w-[2px] bg-black/12 pointer-events-none" />
+      <div className="absolute inset-y-0 left-0 w-[5%] bg-gradient-to-r from-black/20 to-transparent pointer-events-none" />
+      {/* Its edge */}
+      <div className="absolute inset-0 rounded-[1.5px] pointer-events-none shadow-[inset_0_0_0_0.75px_rgba(0,0,0,0.22)]" />
     </div>
   );
 }

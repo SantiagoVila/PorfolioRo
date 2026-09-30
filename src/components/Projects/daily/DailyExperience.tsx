@@ -11,7 +11,7 @@ import { useBox } from "../useBox";
 import type { ExperienceProps } from "../experiences";
 
 /**
- * THE DAILY: the newspaper from the desk, opened into an editorial hub.
+ * EL DIARIO: the newspaper from the desk, opened into an editorial hub.
  *
  * It arrives as the blank sheet the opening transition leaves on screen (the
  * front page starts as that same paper, its ink not yet printed) and prints
@@ -20,9 +20,9 @@ import type { ExperienceProps } from "../experiences";
  * on the page. Stories open over the newspaper, which stays underneath with
  * its state, and return into it.
  *
- * History: a story adds one entry on top of THE DAILY's own
+ * History: a story adds one entry on top of EL DIARIO's own
  * (?project=journalism&story=id, same history key), so Back, Escape and the
- * shell's control all go up exactly one level (story → THE DAILY → desk)
+ * shell's control all go up exactly one level (story → EL DIARIO → desk)
  * through the existing project history, and Forward re-enters the story.
  */
 
@@ -49,7 +49,7 @@ export default function DailyExperience({ setShellControlHidden }: ExperiencePro
     openRef.current = open;
   }, [open]);
 
-  // While a story is open its own control is the one way up (to THE DAILY):
+  // While a story is open its own control is the one way up (to EL DIARIO):
   // the shell's "Back to the desk" is hidden, out of the tab order and the
   // accessibility tree, instead of sitting underneath with the wrong label.
   const storyOpen = !!open;
@@ -114,7 +114,7 @@ export default function DailyExperience({ setShellControlHidden }: ExperiencePro
     if (id) requestAnimationFrame(() => links.current[id]?.focus({ preventScroll: true }));
   }, []);
 
-  // Back / Forward within THE DAILY.
+  // Back / Forward within EL DIARIO.
   useEffect(() => {
     const onPop = () => {
       const id = storyInUrl();

@@ -1,5 +1,5 @@
 /**
- * THE DAILY: the three stories it carries.
+ * EL DIARIO: the three stories it carries.
  *
  * Every headline, deck and credit below is quoted from the three original
  * documents, which are served as PDFs from public/periodismo/editorial/; the
@@ -88,5 +88,20 @@ export const FURNITURE = {
   ] as const,
 };
 
-/** The paper's own furniture, shared by the newspaper on the desk and the open front page. */
-export const ISSUE = { volume: "Vol. 01", section: "Articles & Reports", years: "2024 — 2025", masthead: "The Daily", author: "Rosario Medina" };
+/**
+ * The paper's own furniture, shared by the newspaper on the desk and the open
+ * front page, set as a Spanish-language paper sets it: its name, "El Diario";
+ * its number in the paper's own count (year of publication and issue: Año I,
+ * N.º 1); the section it runs, named after what its three pieces are (an
+ * investigation and two trend reports); the city and the years in the ear.
+ */
+export const ISSUE = {
+  volume: "Año I · N.º 1",
+  section: "Investigación y tendencias",
+  /** The section as it is set beside the masthead, on two lines. */
+  sectionLines: ["Investigación", "y tendencias"],
+  city: "Buenos Aires",
+  years: "2024 — 2025",
+  masthead: "El Diario",
+  author: "Rosario Medina",
+};

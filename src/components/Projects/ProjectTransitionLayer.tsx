@@ -5,7 +5,10 @@ import Image from "next/image";
 import { motion, useAnimationFrame, useMotionValue, useTransform } from "framer-motion";
 import { quadToMatrix3d } from "@/components/Studio/perspective";
 import { BookCover, BookShadows, BookThickness } from "@/components/Studio/BookObject";
-import { NEWSPRINT, NewspaperFront, NewspaperSheets, NewspaperShadows } from "@/components/Studio/DiaryObject";
+import { NEWSPRINT, NewspaperEdge, NewspaperFront, NewspaperShadows } from "@/components/Studio/DiaryObject";
+import PrintLight from "@/components/Studio/PrintLight";
+import { edgeLocal } from "@/components/Studio/deskLight";
+import { DESK_OBJECTS, objectFor } from "@/components/Studio/sceneLayout";
 import type { ActiveObject, ProjectTransition } from "./useProjectTransition";
 import { clamp01, heldRect, lerpQuad, projectFillRect, rectQuad } from "./transitionGeometry";
 import { FILL_COVER_SIZES, HELD_COVER_SIZES } from "./coverWarmup";
@@ -21,7 +24,7 @@ import { PAPER as DAILY_PAPER } from "./daily/paper";
  *
  * Fill: a sharp, screen-sized version that takes over at t=1 and grows to
  * cover the screen (t=2). Books become their full-bleed cover (identical to
- * the project's opening frame); THE DAILY stays paper: its ink fades and the
+ * the project's opening frame); EL DIARIO stays paper: its ink fades and the
  * newsprint turns into the archive's paper.
  */
 export default function ProjectTransitionLayer({ transition }: { transition: ProjectTransition }) {
@@ -46,6 +49,12 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
   });
   const bodyW = object.width * base.bodyZoom;
   const bodyH = object.height * base.bodyZoom;
+  // As it lay on the desk (the scene's layout for this screen): its thickness and the desk's light over it.
+  const [lying] = useState(() => {
+    const o = DESK_OBJECTS.find((d) => d.id === object.id);
+    return o ? objectFor(o, window.innerWidth / window.innerHeight < 1) : null;
+  });
+  const edge = lying ? edgeLocal(lying) : 0;
 
   // Recomputed every frame, not only when t changes: near the desk the double
   // must stay glued to the live object (which may still be finishing a hover or
@@ -73,7 +82,7 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
   const roomLight = useTransform(t, (v) => 1 - clamp01(v));
   const heldShadow = useTransform(t, (v) => clamp01(v) * (1 - clamp01((v - 1) * 2)));
   const fillVisible = useTransform(t, (v) => (v > 1 ? 1 : 0));
-  // Newspaper only: the print fades and newsprint becomes THE DAILY's own paper.
+  // Newspaper only: the print fades and newsprint becomes EL DIARIO's own paper.
   const ink = useTransform(t, [1, 1.8], [1, 0]);
   const paper = useTransform(t, [1, 2], [NEWSPRINT, DAILY_PAPER]);
 
@@ -109,18 +118,20 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
           {object.kind === "book" && object.coverImage ? (
             <>
               <motion.div className="absolute inset-0 -z-10" style={{ visibility: deskShadowsShown }}>
-                <BookShadows opacity={deskShadows} />
+                <BookShadows opacity={deskShadows} edge={edge} />
               </motion.div>
-              <BookThickness opacity={thickness} />
+              <BookThickness opacity={thickness} edge={edge} />
               <BookCover title={object.label} coverImage={object.coverImage} grade={roomLight} hiResSizes={HELD_COVER_SIZES} />
+              {lying && <PrintLight object={lying} grade={roomLight} />}
             </>
           ) : (
             <>
               <motion.div className="absolute inset-0 -z-10" style={{ visibility: deskShadowsShown }}>
-                <NewspaperShadows opacity={deskShadows} />
+                <NewspaperShadows opacity={deskShadows} edge={edge} />
               </motion.div>
-              <NewspaperSheets opacity={thickness} />
-              <NewspaperFront title="The Daily" category={object.category} grade={roomLight} />
+              <NewspaperEdge opacity={thickness} edge={edge} />
+              <NewspaperFront title={object.label} category={object.category} grade={roomLight} />
+              {lying && <PrintLight object={lying} grade={roomLight} />}
             </>
           )}
         </div>
@@ -135,7 +146,7 @@ function Double({ object, transition }: { object: ActiveObject; transition: Proj
           <Image src={object.coverImage} alt="" fill sizes={FILL_COVER_SIZES} className="object-cover" loading="eager" draggable={false} />
         ) : (
           <div className="relative" style={{ zoom: base.fillZoom, width: object.width, height: object.height }}>
-            <NewspaperFront title="The Daily" category={object.category} grade={0} ink={ink} paper={paper} />
+            <NewspaperFront title={object.label} category={object.category} grade={0} ink={ink} paper={paper} />
           </div>
         )}
       </motion.div>

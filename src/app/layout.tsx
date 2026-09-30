@@ -38,13 +38,19 @@ export const viewport: Viewport = {
 };
 
 import Preloader from "@/components/Preloader";
+import { MOOD_SCRIPT } from "@/components/Studio/mood";
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="es"
       className={`${spaceGrotesk.variable} h-full antialiased`}
+      // The studio's light is chosen by the visitor's clock before the first paint (its script marks <html data-mood>).
+      suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: MOOD_SCRIPT }} />
+      </head>
       <body className="min-h-full bg-[var(--color-paper)] text-[var(--color-ink)] font-sans">
         <Preloader />
         {children}

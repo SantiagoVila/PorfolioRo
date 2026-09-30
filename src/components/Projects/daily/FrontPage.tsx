@@ -9,7 +9,7 @@ import type { Box } from "../useBox";
 import { DailyMark } from "./identity";
 
 /**
- * THE DAILY's front page: three stories competing for the lead.
+ * EL DIARIO's front page: three stories competing for the lead.
  *
  * Broadsheet (wide screens): the stories keep their columns; the one the
  * reader dwells on or focuses becomes the lead and the page is re-set around
@@ -69,8 +69,8 @@ function Masthead({ size, onEnter, onPromote, opening, go, reduced, compact }: {
         animate={wait ? { opacity: 0 } : { opacity: 1 }}
         transition={{ delay: 0.55, duration: 0.5 }}
       >
-        <span lang="en">{ISSUE.volume} — {ISSUE.section}</span>
-        <span>{ISSUE.years}</span>
+        <span>{ISSUE.volume} — {ISSUE.section}</span>
+        <span>{ISSUE.city}, {ISSUE.years}</span>
       </motion.div>
       <motion.div
         className="mt-2 h-[3px] origin-center"
@@ -82,18 +82,16 @@ function Masthead({ size, onEnter, onPromote, opening, go, reduced, compact }: {
       <div className={compact ? "flex flex-col items-center" : "grid grid-cols-[1fr_auto_1fr] items-center"} style={{ paddingBlock: size * 0.07 }}>
         {!compact && (
           <motion.span
-            lang="en"
             className={`${narrow.className} uppercase tracking-[0.18em] font-semibold leading-[1.25] opacity-80`}
             style={{ fontSize: flank }}
             initial={print ? { opacity: 0 } : false}
             animate={wait ? { opacity: 0 } : { opacity: 0.8 }}
             transition={{ delay: 0.55, duration: 0.5 }}
           >
-            {ISSUE.section.split(" & ").map((w, i) => <span key={w} className="block">{i ? `& ${w}` : w}</span>)}
+            {ISSUE.sectionLines.map((w) => <span key={w} className="block">{w}</span>)}
           </motion.span>
         )}
         <motion.h2
-          lang="en"
           className="leading-none"
           initial={print ? { opacity: 0, scale: 0.985 } : false}
           animate={wait ? { opacity: 0, scale: 0.985 } : { opacity: 1, scale: 1 }}
@@ -119,7 +117,7 @@ function Masthead({ size, onEnter, onPromote, opening, go, reduced, compact }: {
         transition={{ delay: 0.2, duration: 0.8, ease: [0.7, 0, 0.2, 1] }}
       />
       <motion.nav
-        aria-label="Historias de esta edición"
+        aria-label="Notas de esta edición"
         className={`${narrow.className} flex ${compact ? "flex-wrap gap-x-4 gap-y-1" : "justify-between"} items-center uppercase tracking-[0.16em] text-[10px] sm:text-[11px] font-semibold py-2`}
         initial={print ? { opacity: 0 } : false}
         animate={wait ? { opacity: 0 } : { opacity: 1 }}
@@ -225,7 +223,7 @@ function FolioRail({ height }: { height: number }) {
   return (
     <div aria-hidden className="flex items-stretch border-t pt-3" style={{ height, borderColor: INK }}>
       <div className={`${cell} flex flex-col justify-between`} style={{ borderColor: "rgba(31,27,22,0.3)" }}>
-        <p className={small}>{ISSUE.masthead} · {ISSUE.volume}</p>
+        <p className={small}>{ISSUE.masthead} · {ISSUE.volume.replace(" · ", ", ")}</p>
         <p className={`${small} opacity-60`}>{ISSUE.section} · {ISSUE.years}</p>
       </div>
       <div className={`${cell} flex-[1.4]`} style={{ borderColor: "rgba(31,27,22,0.3)" }}><PullQuote size={20} /></div>
@@ -540,7 +538,7 @@ function Tabloid({ box, onEnter, registerImage, registerLink, parted, opening, g
         <div aria-hidden className="mt-10 pt-4 border-t-[3px]" style={{ ...partedStyle(third.id), borderColor: INK }}>
           <InThisIssue />
           <div className="mt-6 flex items-center justify-between">
-            <p className={`${small} opacity-60`}>{ISSUE.masthead} · {ISSUE.volume} · {ISSUE.years}</p>
+            <p className={`${small} opacity-60`}>{ISSUE.masthead} · {ISSUE.volume.replace(" · ", ", ")} · {ISSUE.years}</p>
             <span className="flex items-center gap-3"><ColourBar /><Registration /></span>
           </div>
         </div>

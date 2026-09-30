@@ -200,8 +200,8 @@ export default function ExplorersStory({ box, heroRef, onBack, heroSizes }: Stor
         <a href={story.pdf.href} target="_blank" rel="noopener" className="border-b-2 pb-1 outline-none focus-visible:ring-2" style={{ borderColor: COLORS.acid }}>
           {story.pdf.label} ↗
         </a>
-        <button onClick={onBack} lang="en" aria-label="Back to The Daily" className="border-b-2 pb-1 uppercase tracking-[0.14em] font-bold outline-none focus-visible:ring-2" style={{ borderColor: COLORS.acid }}>
-          ← The Daily
+        <button onClick={onBack} aria-label="Volver a la portada" className="border-b-2 pb-1 uppercase tracking-[0.14em] font-bold outline-none focus-visible:ring-2" style={{ borderColor: COLORS.acid }}>
+          ← El Diario
         </button>
       </footer>
     </div>

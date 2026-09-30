@@ -1,5 +1,5 @@
 /**
- * Rosario Medina, for the About and Contact states.
+ * Rosario Medina, for the About and Contact visits (the cap and the phone on the desk).
  *
  * ABOUT: transcribed from Rosario's own About page, "About me — RM Studio |
  * Issue 01": her words and headings, in Spanish as she wrote them (one typo
@@ -10,9 +10,13 @@
  * The studio's name and masthead ("RM Studio | Issue 01") are the page's own
  * header; the cap carries the same name embroidered ("Rosario Medina Studio").
  *
- * CONTACT: empty (null) until Rosario supplies her details. Fill them here:
- * the Contact card prints each one, with its actions, as soon as it has a
- * value, and shows nothing at all for an empty one (no placeholder).
+ * CONTACT: empty (null) until Rosario supplies her details. Fill them here.
+ * Answering the telephone on the desk hands the visitor her card (Studio/
+ * ContactVisit): her email and her celular are its first lines, always
+ * there, each a link (write to her, call her) with a copy button, as soon as
+ * it has a value; until then the card keeps their places ruled and empty (no
+ * placeholder text, nothing invented). Instagram, LinkedIn and the CV are
+ * printed under them only when they have a value.
  */
 
 export const ABOUT = {
@@ -42,6 +46,8 @@ export const ABOUT = {
 export interface ContactInfo {
   /** e.g. "nombre@dominio.com" */
   email: string | null;
+  /** Her celular, as it should read, with its country code: e.g. "+54 9 11 1234-5678" (the link dials its digits). */
+  phone: string | null;
   /** Handle without the @, e.g. "rosariomedina" */
   instagram: string | null;
   /** Full profile URL, e.g. "https://www.linkedin.com/in/…" */
@@ -52,6 +58,7 @@ export interface ContactInfo {
 
 export const CONTACT: ContactInfo = {
   email: null,
+  phone: null,
   instagram: null,
   linkedin: null,
   cv: null,

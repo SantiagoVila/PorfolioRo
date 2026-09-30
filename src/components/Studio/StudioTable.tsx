@@ -7,17 +7,13 @@ import { preloadExperiences } from "@/components/Projects/experiences";
 import { PROJECTS } from "@/data/projectsData";
 import type { World } from "@/hooks/useWorld";
 import { useRevealed } from "../reveal";
-import { safeInsets } from "../safeArea";
 import { DESK_OBJECTS, WALL_EDGE_Y } from "./sceneLayout";
 import { project } from "./worldCamera";
 
-const INK = [25, 21, 16];
-const LIGHT = [239, 232, 220];
 const smooth = (x: number) => {
   const t = Math.min(1, Math.max(0, x));
   return t * t * (3 - 2 * t);
 };
-const mixRgb = (a: number[], b: number[], t: number) => `rgb(${a.map((v, i) => Math.round(v + (b[i] - v) * t)).join(",")})`;
 
 /** The scroll cue's pulse: the bar runs down its track (1.8 s), then rests out of sight (0.3 s). */
 const PULSE: Keyframe[] = [
@@ -27,26 +23,20 @@ const PULSE: Keyframe[] = [
 ];
 
 /**
- * The desk's own words, present only while the desk is the subject: the one
- * instruction, nothing else at the edges. And the scroll cue,
- * the one thing carried from the intro: under the hero at first, just above
- * the desk's edge in the wall's ink; as the camera comes down it travels into
- * the corner, turning light over the floor, and stays as the desk's "Scroll".
+ * The intro's scroll cue, under the hero just above the desk's edge, in the
+ * room's ink (light at night): it goes as soon as the page starts down. The
+ * desk itself carries no words: its publications say what they are (their
+ * names show on hover and focus, see StudioScene), and everything else is
+ * reached from its objects.
  */
 export default function StudioTable({ world }: { world: World }) {
   const { s, view, cams } = world;
   const revealed = useRevealed();
-  const near = useTransform(s, (v) => Math.max(0, 1 - Math.abs(v - 1) * 2.2));
-  const y = useTransform(near, (v) => (1 - v) * 24);
 
-  const along = useTransform(s, (v) => smooth((v - 0.08) / 0.8));
   const introEdge = cams.length ? project(view, cams[0], 0, WALL_EDGE_Y).y : view.hs;
   const rise = Math.max(0, view.hs - 32 - (introEdge - 18));
-  // Into the corner, clear of a phone's notch or rounded corner when it is held sideways.
-  const cueX = useTransform(along, (p) => p * (view.w / 2 - 64 - safeInsets().right));
-  const cueY = useTransform(along, (p) => -(1 - p) * rise);
-  const cueColor = useTransform(along, (p) => mixRgb(INK, LIGHT, smooth((p - 0.3) / 0.5)));
-  const cueOpacity = useTransform(s, (v) => (v <= 1 ? 1 : Math.max(0, 1 - (v - 1) * 2.2)));
+  const cueY = -rise;
+  const cueOpacity = useTransform(s, (v) => 1 - smooth((v - 0.02) / 0.22));
   // The line's pulse runs only while the intro waits for the first scroll.
   const [waiting, setWaiting] = useState(() => s.get() < 0.08);
   // A Web Animation of transform alone, which the browser's compositor plays: the
@@ -76,19 +66,10 @@ export default function StudioTable({ world }: { world: World }) {
 
   return (
     <div className="absolute inset-0 z-30 pointer-events-none">
-      <motion.p
-        lang="en"
-        className="absolute left-[max(env(safe-area-inset-left),2rem)] text-[#191510] text-[9px] font-bold tracking-[0.2em] uppercase leading-relaxed"
-        style={{ top: "calc(max(env(safe-area-inset-top), 0px) + 7.5rem)", opacity: near, y }}
-      >
-        Select a project.
-        <span aria-hidden className="block mt-4 text-xl font-light tracking-normal">+</span>
-      </motion.p>
-
       <motion.div
         aria-hidden
         className="absolute left-1/2 w-16 -ml-8"
-        style={{ bottom: "calc(2rem + 100lvh - 100svh + env(safe-area-inset-bottom))", x: cueX, y: cueY, color: cueColor, opacity: cueOpacity }}
+        style={{ bottom: "calc(2rem + 100lvh - 100svh + env(safe-area-inset-bottom))", y: cueY, color: "rgb(var(--scene-ink))", opacity: cueOpacity }}
       >
         <motion.div
           className="flex flex-col items-center gap-2.5 text-[8px] md:text-[9px] font-bold tracking-[0.3em] uppercase pl-[0.3em]"

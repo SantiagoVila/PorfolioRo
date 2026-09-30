@@ -4,6 +4,7 @@ import {
   CAP_REST,
   CAP_SHADOW_BAND,
   DESK_FRONT_Y,
+  DESK_OBJECTS,
   NAME_HEIGHT_EM,
   PORTRAIT,
   STAGE_HEIGHT,
@@ -11,20 +12,24 @@ import {
   WALL_ABOVE,
   WALL_EDGE_Y,
   WALL_TEXT,
-  WALL_TEXT_PORTRAIT,
+  shapeOf,
 } from "./sceneLayout";
+
+/** The labels on the desk in front of the work (stage y, their lower edge). */
+const LABELS_Y = Math.max(...DESK_OBJECTS.map((o) => o.labelAt[1])) + 10;
 
 /**
  * One camera over the studio for the whole page. A camera is the stage point
  * at the centre of the screen and a scale (screen px per stage px); each
  * state has its own framing, and the page glides between them as it scrolls.
  *
- *   INTRO   looking up the wall: the name, the cap, only the desk's edge.
- *   WORK    down on the desk: the Studio framing (landscape), or the
- *           objects two by two (upright screens).
- *   ABOUT   towards the right of the wall, a little closer: the desk sinks
- *           lower, the wall and Rosario's material take the frame.
- *   CONTACT a little closer again and lower, to the card: the quietest move.
+ *   INTRO   looking up the wall: the name and the cap, only the desk's back
+ *           edge.
+ *   WORK    the studio as photographed: the wall, the desk, the chair
+ *           (framed per shape of screen, see workCamera).
+ *
+ * An object on the desk can also draw the camera towards itself (the phone,
+ * when it is picked up): see closeOn, and useWorld's aim.
  */
 
 export type Camera = { cx: number; cy: number; k: number };
@@ -37,12 +42,15 @@ export interface View {
   hs: number;
   /** Phones and tablets held upright get their own desk layout. */
   portrait: boolean;
-  /** The landscape Studio framing (useStageFit). */
+  /** The landscape Studio framing (useStageFit; the framings here are worldCamera's own). */
   fit: { scale: number; x: number; y: number };
 }
 
 /** Upright screens never enlarge the photograph beyond this. */
 const PORTRAIT_MAX_K = 1.3;
+
+const clamp = (v: number, a: number, b: number) => Math.min(b, Math.max(a, v));
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
 /** A camera at scale k and centre x whose stage y lands at fraction f of the visible height. */
 function at(v: View, k: number, cx: number, stageY: number, f: number): Camera {
@@ -58,43 +66,74 @@ function clampCam(v: View, c: Camera): Camera {
   return { k: c.k, cx, cy };
 }
 
+/** Below the navigation (screen px): where her painted name may start at the desk. */
+const UNDER_NAV = 64;
+
+/**
+ * The desk framing, art-directed per shape of screen (one room: only the
+ * frame changes; everything on the desk is placed in the photograph's own
+ * coordinates, so it stays where it lies).
+ *
+ * Landscape and wide screens see the photograph's whole width wherever the
+ * screen is at least 3:2 (desktops and laptops: the lamp, the window, the
+ * chair's back and the pink throw on it), a little less on squarer screens
+ * (tablets held sideways: never less than the lamp's shade to the window's
+ * frame, 1460 px). Vertically the photograph's foot (the chair) sits at the
+ * bottom of the screen and taller screens see more of the wall above. When the
+ * photograph is taller than the screen (16:9 and wider: phones held sideways,
+ * ultra-wide monitors) the frame keeps her name clear of the navigation and
+ * the labels in view, and as much of the chair as fits.
+ *
+ * Upright screens see a slice of the room around the work (laid out two by two
+ * for them), wider as the screen gets squarer (tablets), its desk's front edge
+ * near the bottom and the wall above.
+ */
 export function workCamera(v: View): Camera {
-  if (!v.portrait) {
-    const k = v.fit.scale;
-    return { k, cx: (v.w / 2 - v.fit.x) / k, cy: (v.h / 2 - v.fit.y) / k };
+  const shape = shapeOf(v);
+  if (shape !== "upright") {
+    const A = v.w / v.hs;
+    const shown = STAGE_WIDTH - (STAGE_WIDTH - 1460) * clamp((1.5 - A) / 0.3, 0, 1);
+    const k = v.w / shown;
+    const visH = v.hs / k;
+    const letters = WALL_TEXT[shape];
+    let top = STAGE_HEIGHT - visH;
+    const nameClear = letters.top - UNDER_NAV / k;
+    if (top > nameClear) top = Math.max(nameClear, LABELS_Y + 12 / k - visH);
+    return clampCam(v, { k, cx: 820, cy: top + v.h / (2 * k) });
   }
-  const k = Math.min(v.w / (PORTRAIT.right - PORTRAIT.left), PORTRAIT_MAX_K);
+  const A = v.w / v.hs;
+  const range = lerp(PORTRAIT.right - PORTRAIT.left, 1000, clamp((A - 0.5) / 0.25, 0, 1));
+  const k = Math.min(v.w / range, PORTRAIT_MAX_K);
   // The desk's front edge a little above the bottom of what is surely visible,
-  // leaving a strip of floor below it.
-  return at(v, k, PORTRAIT.centreX, DESK_FRONT_Y, 0.88);
+  // leaving a strip of the chair's back below it.
+  return at(v, k, PORTRAIT.centreX, DESK_FRONT_Y, 0.92);
 }
 
-/** The four framings, in state order. */
+/** The two framings, in state order. */
 export function stateCameras(v: View): Camera[] {
   const work = workCamera(v);
-  const right = (f: number, k: number) => work.cx + (f * v.w) / k;
-  if (v.portrait) {
-    // The objects' nearest edge to the wall: in the intro it stays just out of frame.
-    const objectsTop = Math.min(...Object.values(PORTRAIT.quads).flatMap((q) => q.map(([, y]) => y)));
-    return [
-      // Up the wall: only a strip of the desk's back edge at the very bottom, none of the objects yet.
-      at(v, work.k, work.cx, objectsTop, 1),
-      work,
-      // About: along the wall to the right, towards her material.
-      at(v, work.k * 1.12, right(0.62, work.k * 1.12), WALL_EDGE_Y, 0.9),
-      // Contact: further along, past the cap, the desk just out of frame: only the card.
-      at(v, work.k * 1.2, right(0.8, work.k * 1.2), WALL_EDGE_Y, 0.97),
-    ];
+  const shape = shapeOf(v);
+  if (shape === "upright") {
+    // The work's far edges: in the intro they stay just out of frame.
+    const objectsTop = Math.min(...Object.values(PORTRAIT.objects).flatMap((o) => o.quad.map(([, y]) => y)));
+    // Up the wall: none of the work yet.
+    return [at(v, work.k, work.cx, objectsTop - 4, 1), work];
   }
-  const ki = work.k * 1.12;
-  const ka = work.k * 1.2;
-  const kc = work.k * 1.24;
-  return [
-    at(v, ki, WALL_TEXT.x, WALL_EDGE_Y, 0.9),
-    work,
-    at(v, ka, right(0.2, ka), WALL_EDGE_Y, 0.8),
-    at(v, kc, right(0.3, kc), WALL_EDGE_Y, 0.8),
-  ];
+  // Up the wall: the desk's back edge low in the frame (the work lies further forward, out of it).
+  return [at(v, work.k * 1.12, WALL_TEXT[shape].x, WALL_EDGE_Y, 0.9), work];
+}
+
+/**
+ * The desk framing drawn `closer` times nearer to a stage point, centred on
+ * it as far as the photograph allows (never past its edges).
+ */
+export function closeOn(v: View, x: number, y: number, closer: number): Camera {
+  return clampCam(v, { k: workCamera(v).k * closer, cx: x, cy: y });
+}
+
+/** Part of the way from one framing to another: scale geometrically (an even zoom to the eye), centre linearly. */
+export function mixCam(a: Camera, b: Camera, t: number): Camera {
+  return { k: a.k * Math.pow(b.k / a.k, t), cx: a.cx + (b.cx - a.cx) * t, cy: a.cy + (b.cy - a.cy) * t };
 }
 
 /**
@@ -133,7 +172,7 @@ const CUE_ROOM = 100;
 const CAP_MAX = 0.46;
 
 export function introLayout(v: View, cams: Camera[]): Intro {
-  const letters = v.portrait ? WALL_TEXT_PORTRAIT : WALL_TEXT;
+  const letters = WALL_TEXT[shapeOf(v)];
   const c = cams[0];
   const row = (y: number) => capIntroRow(v, y);
   if (!v.portrait) {
@@ -159,14 +198,11 @@ export function introLayout(v: View, cams: Camera[]): Intro {
   return { lift: Math.max(0, Math.min(letters.introLift, letters.top - nameTop)), scale: letters.introScale, heroY, capScale: 1, caption: true };
 }
 
-/** The camera at state progress s (0–3): scale glides geometrically, the centre linearly. */
+/** The camera at state progress s (0–1). */
 export function cameraAt(cams: Camera[], s: number): Camera {
   const i = Math.min(cams.length - 1, Math.max(0, Math.floor(s)));
   const j = Math.min(cams.length - 1, i + 1);
-  const f = Math.min(1, Math.max(0, s - i));
-  const a = cams[i];
-  const b = cams[j];
-  return { k: a.k * Math.pow(b.k / a.k, f), cx: a.cx + (b.cx - a.cx) * f, cy: a.cy + (b.cy - a.cy) * f };
+  return mixCam(cams[i], cams[j], Math.min(1, Math.max(0, s - i)));
 }
 
 /** Screen position of a stage point. */

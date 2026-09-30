@@ -8,7 +8,7 @@ export interface ExperienceProps {
   onClose: () => void;
   /**
    * Hide the shell's "Back to the desk" control while the experience shows its
-   * own way up a level (THE DAILY's stories). Optional; the shell restores it
+   * own way up a level (EL DIARIO's stories). Optional; the shell restores it
    * when the experience unmounts.
    */
   setShellControlHidden?: (hidden: boolean) => void;
@@ -19,7 +19,7 @@ type Experience = ComponentType<ExperienceProps>;
 /**
  * Which experience opens for each desk object. Each entry is free to be a
  * completely different component (layout, background, scrolling, media,
- * interactions). CHACARITA, COLORFULL and B&W are books; THE DAILY is the
+ * interactions). CHACARITA, COLORFULL and B&W are books; EL DIARIO is the
  * newspaper that opens into an editorial hub of its three stories.
  *
  * Each is its own chunk, fetched when the desk comes into view
